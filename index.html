@@ -35,9 +35,21 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .syncdot.ok{background:#6d9b7c}
 .syncdot.busy{background:#d6a34b}
 .syncdot.err{background:#b4493d}
+
+.pin-gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:28px}
+.pin-gate.hidden{display:none}.pin-card{width:min(100%,430px);background:var(--card);border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:0 14px 40px rgba(44,55,50,.08)}
+.pin-logo{font-size:22px;font-weight:800;margin-bottom:4px}.pin-sub{color:var(--muted);margin-bottom:26px}.pin-title{font-size:30px;font-weight:800;margin:0 0 10px}
+.pin-help{color:var(--muted);line-height:1.55;margin-bottom:20px}.pin-input{width:100%;font-size:30px;letter-spacing:10px;text-align:center;padding:16px;border:1px solid var(--line);border-radius:18px;background:#fff}
+.pin-btn{width:100%;margin-top:14px;padding:16px;border:0;border-radius:18px;background:#dfeae4;color:#315447;font-size:18px;font-weight:800}.pin-btn:disabled{opacity:.55}
+.pin-error{min-height:24px;margin-top:12px;color:#a54b43;text-align:center;font-size:14px}.pin-note{margin-top:14px;color:var(--muted);font-size:13px;text-align:center;line-height:1.5}
 </style></head>
-<body>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.0 Beta · 雲端同步修正版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><select id="role" class="pill" style="width:auto"></select></div><main id="view"></main></div>
+<body><div id="pinGate" class="pin-gate">
+<div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">家庭雲端同步</div>
+<div class="pin-title">輸入家庭 PIN</div><div class="pin-help">請輸入家庭共用的 6 位數 PIN。驗證成功後，這台裝置會記住，不會因為切換「今天／日曆／家庭／紀錄」再次詢問。</div>
+<input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
+<button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
+<div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.0 Beta · 家庭登入版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><select id="role" class="pill" style="width:auto"></select></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -102,103 +114,15 @@ function setSyncStatus(kind,text){
  if(txt)txt.textContent=text;
 }
 
-function getFamilyPin(){
- let pin=localStorage.getItem('homie_family_pin')||'';
- if(/^\d{6}$/.test(pin)) return pin;
-
- pin=(prompt('請輸入 Homie 家庭 6 位數 PIN')||'').trim();
- if(/^\d{6}$/.test(pin)){
-   localStorage.setItem('homie_family_pin',pin);
-   return pin;
- }
- return '';
-}
-
-async function apiRequest(action, data){
- const pin=getFamilyPin();
- if(!pin) throw new Error('PIN_REQUIRED');
-
- const res=await fetch('/api/state',{
-   method:'POST',
-   headers:{'Content-Type':'application/json'},
-   cache:'no-store',
-   body:JSON.stringify({
-     action,
-     pin,
-     data: data===undefined ? null : data
-   })
- });
-
- let result=null;
- try{ result=await res.json(); }catch(_){}
-
- if(res.status===401){
-   throw new Error('PIN_INVALID');
- }
- if(!res.ok){
-   throw new Error((result&&result.error) || ('HTTP_'+res.status));
- }
- return result;
-}
-
-function save(){
- localStorage.setItem('homie12',JSON.stringify(S));
- if(cloudReady){
-   clearTimeout(cloudTimer);
-   cloudTimer=setTimeout(pushCloudState,450);
- }
-}
-
-async function pushCloudState(){
- if(cloudBusy || !cloudReady) return;
- try{
-   cloudBusy=true;
-   setSyncStatus('busy','同步中…');
-   await apiRequest('save',S);
-   setSyncStatus('ok','已同步');
- }catch(e){
-   console.error('Homie cloud save:',e);
-   if(e.message==='PIN_INVALID'){
-     cloudReady=false;
-     setSyncStatus('err','PIN 驗證失敗');
-   }else{
-     setSyncStatus('err','同步失敗');
-   }
- }finally{
-   cloudBusy=false;
- }
-}
-
-async function initCloud(){
- try{
-   setSyncStatus('busy','連接雲端…');
-   const result=await apiRequest('get');
-
-   if(result && result.data){
-     S=result.data;
-     localStorage.setItem('homie12',JSON.stringify(S));
-     cloudReady=true;
-     setSyncStatus('ok','雲端已同步');
-     render();
-   }else{
-     // Cloud is empty: seed it from this device's current local data.
-     cloudReady=true;
-     await apiRequest('save',S);
-     setSyncStatus('ok','已建立家庭雲端資料');
-   }
- }catch(e){
-   console.error('Homie cloud init:',e);
-   cloudReady=false;
-
-   if(e.message==='PIN_INVALID'){
-     setSyncStatus('err','PIN 驗證失敗');
-   }else if(e.message==='PIN_REQUIRED'){
-     setSyncStatus('err','尚未輸入家庭 PIN');
-   }else{
-     setSyncStatus('err','目前使用本機資料');
-   }
- }
-}
+function storedFamilyPin(){const pin=(localStorage.getItem('homie_family_pin')||'').trim();return /^\d{6}$/.test(pin)?pin:''}
+function showPinGate(message=''){const g=document.getElementById('pinGate'),i=document.getElementById('pinInput'),e=document.getElementById('pinError');if(e)e.textContent=message;if(g)g.classList.remove('hidden');if(i)setTimeout(()=>i.focus(),80)}
+function hidePinGate(){const g=document.getElementById('pinGate'),e=document.getElementById('pinError');if(e)e.textContent='';if(g)g.classList.add('hidden')}
+async function apiRequest(action,data,pinOverride){const pin=(pinOverride||storedFamilyPin()).trim();if(!/^\d{6}$/.test(pin))throw new Error('PIN_REQUIRED');const res=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({action,pin,data:data===undefined?null:data})});let result=null;try{result=await res.json()}catch(_){}if(res.status===401)throw new Error('PIN_INVALID');if(!res.ok)throw new Error((result&&result.error)||('HTTP_'+res.status));return result}
+function save(){localStorage.setItem('homie12',JSON.stringify(S));if(cloudReady){clearTimeout(cloudTimer);cloudTimer=setTimeout(pushCloudState,450)}}
+async function pushCloudState(){if(cloudBusy||!cloudReady)return;try{cloudBusy=true;setSyncStatus('busy','同步中…');await apiRequest('save',S);setSyncStatus('ok','已同步')}catch(e){console.error(e);if(e.message==='PIN_INVALID'){cloudReady=false;localStorage.removeItem('homie_family_pin');setSyncStatus('err','PIN 驗證失敗');showPinGate('PIN 驗證失敗，請重新輸入。')}else setSyncStatus('err','同步失敗')}finally{cloudBusy=false}}
+async function loadCloudWithPin(pin){setSyncStatus('busy','連接雲端…');const result=await apiRequest('get',undefined,pin);localStorage.setItem('homie_family_pin',pin);if(result&&result.data){S=result.data;localStorage.setItem('homie12',JSON.stringify(S));cloudReady=true;setSyncStatus('ok','雲端已同步');syncRoleSelect();render()}else{cloudReady=true;await apiRequest('save',S,pin);setSyncStatus('ok','已建立家庭雲端資料')}hidePinGate()}
+async function submitFamilyPin(){const i=document.getElementById('pinInput'),b=document.getElementById('pinLoginBtn'),e=document.getElementById('pinError');const pin=(i?.value||'').replace(/\D/g,'').slice(0,6);if(i)i.value=pin;if(!/^\d{6}$/.test(pin)){if(e)e.textContent='請輸入完整 6 位數 PIN。';return}try{if(b){b.disabled=true;b.textContent='驗證中…'}if(e)e.textContent='';await loadCloudWithPin(pin)}catch(x){console.error(x);localStorage.removeItem('homie_family_pin');cloudReady=false;if(x.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');if(e)e.textContent='PIN 不正確，請再試一次。'}else{setSyncStatus('err','雲端連線失敗');if(e)e.textContent='目前無法連接家庭雲端，請稍後再試。'}}finally{if(b){b.disabled=false;b.textContent='登入家庭資料'}}}
+async function initCloud(){const pin=storedFamilyPin();if(!pin){cloudReady=false;setSyncStatus('busy','等待家庭 PIN');showPinGate();return}try{await loadCloudWithPin(pin)}catch(e){console.error(e);localStorage.removeItem('homie_family_pin');cloudReady=false;if(e.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');showPinGate('已儲存的 PIN 無效，請重新輸入。')}else{setSyncStatus('err','雲端連線失敗');showPinGate('目前無法連接家庭雲端，請重新嘗試。')}}}
 
 function currentMemberObj(){
  return (S.members||[]).find(m=>m.name===S.currentMember) || (S.members||[])[0] || {name:'使用者',role:'家庭觀察者'};
@@ -518,5 +442,8 @@ function removePriority(n){
 function toggleDone(name,even=false){S.done[S.selected]??={};let nv=!S.done[S.selected][name];S.done[S.selected][name]=nv;if(nv){S.history.push({date:S.selected,name,by:currentName()});if(!even){let t=S.tasks.find(x=>x.name===name);if(t)t.lastDone=S.selected}}else{S.history=S.history.filter(x=>!(x.date===S.selected&&x.name===name));if(!even){let t=S.tasks.find(x=>x.name===name);if(t&&t.lastDone===S.selected){let prev=S.history.filter(x=>x.name===name).map(x=>x.date).sort().pop();t.lastDone=prev||null}}}render()}
 function shiftMonth(n){let x=d(S.selected);x.setMonth(x.getMonth()+n);x.setDate(1);S.selected=ds(x);render()}
 function render(){syncRoleSelect();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():historyView();const ts=document.getElementById('todayShortcut');if(ts)ts.style.display=(S.tab==='today'&&S.selected===today())?'none':'block';save()}
+const pinInputEl=document.getElementById('pinInput'),pinLoginBtnEl=document.getElementById('pinLoginBtn');
+if(pinInputEl){pinInputEl.addEventListener('input',()=>{pinInputEl.value=pinInputEl.value.replace(/\D/g,'').slice(0,6);const e=document.getElementById('pinError');if(e)e.textContent=''});pinInputEl.addEventListener('keydown',e=>{if(e.key==='Enter')submitFamilyPin()})}
+if(pinLoginBtnEl)pinLoginBtnEl.addEventListener('click',submitFamilyPin);
 R.addEventListener('change',e=>{S.currentMember=e.target.value;S.tab='today';render()});document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>{S.tab=x.dataset.tab;render()}));render();setTimeout(initCloud,150);
 </script></body></html>
