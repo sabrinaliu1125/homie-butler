@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f4ee"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homie">
-<title>Homie Butler Alpha v0.11</title>
+<title>Homie Butler Alpha v0.11.1</title>
 <style>
 :root{--bg:#f7f4ee;--card:#fffdfa;--ink:#2f3532;--muted:#77807a;--sage:#739887;--sage2:#dfe9e3;--yellow:#f2d17f;--amber:#dca856;--line:#e8e3da;--radius:22px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif}
@@ -26,7 +26,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .translation-pending{background:#f6f1e6;border-radius:12px;padding:9px;margin-top:7px;font-size:12px;color:#7a6743}
 </style></head>
 <body>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">Alpha v0.11 · 管理者覆寫版</div></div><select id="role" class="pill" style="width:auto"><option value="manager">管理者</option><option value="helper">外傭</option><option value="observer">家人</option></select></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">Alpha v0.11.1 · 修正版</div></div><select id="role" class="pill" style="width:auto"><option value="manager">管理者</option><option value="helper">外傭</option><option value="observer">家人</option></select></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="sdlg"><div class="db">
@@ -39,7 +39,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 <dialog id="pdlg"><div class="db"><div class="between"><h3>加入今天優先</h3><button class="mini" onclick="pdlg.close()">關閉</button></div><div class="small">輸入關鍵字後，從已設定的家事中選擇。</div><div style="height:8px"></div><input id="pin" placeholder="搜尋家事，例如：客廳、排水孔" oninput="renderPriorityMatches()"><div id="priorityMatches" class="search-results"></div><div style="height:8px"></div><button class="btn secondary full" onclick="prepareNewTaskFromPriority()">找不到？新增到家事庫</button></div></dialog>
 <script>
 const ID={'洗衣服':'Mencuci pakaian','晾衣服':'Menjemur pakaian','收衣服':'Merapikan pakaian','收垃圾':'Mengumpulkan sampah','清貓砂':'Membersihkan kotak pasir kucing','倒除濕機水':'Mengosongkan air dehumidifier','洗貓碗':'Mencuci mangkuk kucing','洗奶瓶與擠乳器':'Mencuci botol dan pompa ASI','餐後收拾':'Merapikan setelah makan','主臥完整清潔':'Membersihkan kamar tidur utama','妹妹房完整清潔':'Membersihkan kamar anak perempuan','弟弟房完整清潔':'Membersihkan kamar anak laki-laki','客廳完整清潔':'Membersihkan ruang tamu','餐廳完整清潔':'Membersihkan ruang makan','廚房完整清潔':'Membersihkan dapur','後陽台完整清潔':'Membersihkan balkon belakang','客廳廁所完整清潔':'Membersihkan toilet ruang tamu','工作室完整清潔':'Membersihkan ruang kerja','排水孔清理':'Membersihkan saluran pembuangan','洗衣機清潔':'Membersihkan mesin cuci','溫奶':'Menghangatkan ASI','早餐／喝奶':'Sarapan / minum susu','送孩子上學':'Mengantar anak ke sekolah','接孩子':'Menjemput anak','晚餐':'Makan malam','睡前奶':'Susu sebelum tidur','很好':'Baik sekali','正常':'Baik','有點累':'Agak lelah','不舒服':'Kurang sehat','家庭日':'Hari keluarga','家事日':'Hari pekerjaan rumah','婆婆家':'Rumah ibu mertua','照護日':'Hari perawatan','外傭休假':'Hari libur','新流程':'Alur baru','新維持工作':'Rutinitas baru','新家事':'Pekerjaan baru'};
-const defaults={role:'manager',tab:'today',selected:new Date().toISOString().slice(0,10),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],notes:{},priorities:{},done:{},history:[],flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
+const defaults={role:'manager',tab:'today',selected:new Date().toISOString().slice(0,10),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],notes:{},priorities:{},done:{},history:[],flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
 tasks:[
 {name:'主臥完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:90,lastDone:null},
 {name:'妹妹房完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:75,lastDone:null},
@@ -55,7 +55,7 @@ tasks:[
 routine:[
 {name:'洗衣服',minutes:20},{name:'晾衣服',minutes:20},{name:'收衣服',minutes:20},{name:'收垃圾',minutes:10},{name:'清貓砂',minutes:10},{name:'倒除濕機水',minutes:10},{name:'洗貓碗',minutes:10,preferred:'傍晚'},{name:'餐後收拾',minutes:25},{name:'洗奶瓶與擠乳器',minutes:20}]
 };
-let S=JSON.parse(localStorage.getItem('homie11')||localStorage.getItem('homie10')||localStorage.getItem('homie09')||localStorage.getItem('homie07')||'null')||defaults;
+let S=JSON.parse(localStorage.getItem('homie111')||localStorage.getItem('homie11')||localStorage.getItem('homie10')||localStorage.getItem('homie09')||localStorage.getItem('homie07')||'null')||defaults;
 if(!S.routine && S.evening) S.routine=S.evening;
 if(!S.routine) S.routine=JSON.parse(JSON.stringify(defaults.routine));
 if(!S.flow) S.flow=JSON.parse(JSON.stringify(defaults.flow));
@@ -64,15 +64,16 @@ if(!S.weekdayModes) S.weekdayModes=JSON.parse(JSON.stringify(defaults.weekdayMod
 if(!S.dateCapacity) S.dateCapacity={};
 if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
+if(!S.planned) S.planned={};
 
 const V=document.getElementById('view'),R=document.getElementById('role'),pdlg=document.getElementById('pdlg'),sdlg=document.getElementById('sdlg');R.value=S.role;
-const today=()=>new Date().toISOString().slice(0,10);function d(s){let [y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x)}function ds(x){return x.toISOString().slice(0,10)}function save(){localStorage.setItem('homie11',JSON.stringify(S))}
+const today=()=>new Date().toISOString().slice(0,10);function d(s){let [y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x)}function ds(x){return x.toISOString().slice(0,10)}function save(){localStorage.setItem('homie111',JSON.stringify(S))}
 function mode(date=S.selected){
  if(S.dateModes[date]) return S.dateModes[date];
  return S.weekdayModes[d(date).getDay()] || S.modeDefault;
 }
 function capacityMinutes(date=S.selected){return Number(S.dateCapacity[date]||240)}
-function setCapacityHours(h){S.dateCapacity[S.selected]=Math.max(0,Number(h)||0)*60;render()}
+function setCapacityHours(h){S.dateCapacity[S.selected]=Math.max(0,Number(h)||0)*60;invalidatePlan();render()}
 function manualAdded(date=S.selected){return S.manualAdd[date]||[]}
 function manualRemoved(date=S.selected){return S.manualRemove[date]||[]}function emo(m){return {'家事日':'🧹','家庭日':'👨‍👩‍👧','婆婆家':'👵','照護日':'👶','外傭休假':'🌴'}[m]||'🏡'}function card(t,b,c=''){return `<section class="card ${c}"><h3>${t}</h3>${b}</section>`}function tr(x){return ID[x]||x}
 function daysSince(last,date){if(!last)return 999;return Math.floor((d(date)-d(last))/86400000)}function completed(date,name){return !!(S.done[date]||{})[name]}
@@ -95,16 +96,23 @@ function duePool(date){
  });
  return list;
 }
-function candidates(date){
+function buildPlan(date){
  let pool=duePool(date),budget=capacityMinutes(date),out=[],used=0;
  let forced=new Set([...(S.priorities[date]||[]),...manualAdded(date)]);
  for(const t of pool){
-   if(completed(date,t.name)){out.push(t);used+=t.minutes||0;continue}
-   if(forced.has(t.name)){out.push(t);used+=t.minutes||0;continue}
-   if(used+(t.minutes||0)<=budget){out.push(t);used+=t.minutes||0}
+   if(forced.has(t.name)){out.push(t.name);used+=t.minutes||0;continue}
+   if(used+(t.minutes||0)<=budget){out.push(t.name);used+=t.minutes||0}
  }
+ S.planned[date]=out;
  return out;
 }
+function candidates(date){
+ let names=S.planned[date];
+ if(!Array.isArray(names)) names=buildPlan(date);
+ let removed=new Set(manualRemoved(date));
+ return names.map(n=>S.tasks.find(t=>t.name===n)).filter(t=>t&&!removed.has(t.name));
+}
+function invalidatePlan(date=S.selected){delete S.planned[date]}
 function extraSuggestions(date){
  if(mode(date)!=='家事日')return [];
  let scheduled=new Set(candidates(date).map(t=>t.name));
@@ -120,9 +128,13 @@ function workload(date){let a=candidates(date),m=a.reduce((s,t)=>s+t.minutes,0),
 function noteBlock(date,can=true){
  let rows=(S.notes[date]||[]).map(n=>{
    if(S.role==='helper'){
-     return `<div class="task bilingual"><b>${n.by}</b><div>${n.translationId||'Terjemahan otomatis akan tersedia setelah layanan AI terhubung.'}</div><span class="zh">${n.text}</span>${!n.translationId?'<div class="translation-pending">AI 翻譯尚未連線｜Terjemahan AI belum terhubung</div>':''}</div>`;
+     if(n.lang==='zh') return `<div class="task bilingual"><b>${n.by}</b><div>${n.translationId||'Terjemahan otomatis akan tersedia setelah layanan AI terhubung.'}</div><span class="zh">${n.text}</span>${!n.translationId?'<div class="translation-pending">AI 翻譯尚未連線｜Terjemahan AI belum terhubung</div>':''}</div>`;
+     return `<div class="task bilingual"><b>${n.by}</b><div>${n.text}</div><span class="zh">${n.translationZh||'AI 中文翻譯尚未連線'}</span></div>`;
    }
-   return `<div class="task"><b>${n.by}</b><div>${n.text}</div>${n.translationZh?`<div class="small">${n.translationZh}</div>`:''}</div>`;
+   if(n.lang==='id'){
+     return `<div class="task bilingual"><b>${n.by}</b><div>${n.translationZh||'AI 中文翻譯尚未連線'}</div><span class="zh">印尼文原文：${n.text}</span>${!n.translationZh?'<div class="translation-pending">待接上 AI 後自動翻成中文</div>':''}</div>`;
+   }
+   return `<div class="task"><b>${n.by}</b><div>${n.text}</div>${n.translationId?`<div class="small">印尼文：${n.translationId}</div>`:''}</div>`;
  }).join('')|| (S.role==='helper'?'<div class="small">Tidak ada catatan khusus.｜沒有特別備註。</div>':'<div class="small">沒有特別備註。</div>');
  let input='';
  if(can){
@@ -150,12 +162,21 @@ function todayView(){
  `;
 }
 function managerScheduledRow(t){
- let base=taskRow(t,false,false);
- return `<div class="schedule-row">${base}<div class="manage-actions"><button class="mini danger" onclick="removeFromToday('${t.name.replace(/'/g,"\\'")}')">今天不排</button></div></div>`;
+ let dn=completed(S.selected,t.name),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';
+ return `<div class="task ${dn?'done':''}" style="margin-bottom:10px">
+   <div class="between">
+     <div><div class="name"><b>${t.name}</b></div><div class="small">${last} · ${t.minDays}～${t.maxDays}天</div></div>
+     <button class="mini" onclick="toggleDone('${t.name}',false)">${dn?'✓ 已完成':'✓ 完成'}</button>
+   </div>
+   <div class="between" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)">
+     <span class="small">調整「${t.name}」</span>
+     <button class="mini danger" onclick="removeFromToday('${t.name.replace(/'/g,"\'")}')">今天不排</button>
+   </div>
+ </div>`;
 }
 function removeFromToday(name){
  (S.manualRemove[S.selected]??=[]);
- if(!S.manualRemove[S.selected].includes(name))S.manualRemove[S.selected].push(name);
+ if(!S.manualRemove[S.selected].includes(name))S.manualRemove[S.selected].push(name);invalidatePlan();
  S.manualAdd[S.selected]=(S.manualAdd[S.selected]||[]).filter(x=>x!==name);
  S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(x=>x!==name);
  render();
@@ -172,6 +193,7 @@ function renderScheduleMatches(){
 function addToToday(name){
  (S.manualAdd[S.selected]??=[]);
  if(!S.manualAdd[S.selected].includes(name))S.manualAdd[S.selected].push(name);
+ invalidatePlan();
  S.manualRemove[S.selected]=(S.manualRemove[S.selected]||[]).filter(x=>x!==name);
  sdlg.close();render();
 }
@@ -219,11 +241,11 @@ function calendarView(){
   cells+=`<button class="day ${s===S.selected?'active':''} ${same?'':'muted'}" onclick="S.selected='${s}';render()"><div class="num">${x.getDate()}</div><div class="modeTxt">${emo(mode(s))} ${mode(s)}</div></button>`;
  }
  let days=['日','一','二','三','四','五','六'];
- let weekly=days.map((label,i)=>`<div class="row"><b style="width:34px">週${label}</b><select onchange="S.weekdayModes[${i}]=this.value;render()">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<option ${S.weekdayModes[i]===x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('');
+ let weekly=days.map((label,i)=>`<div class="row"><b style="width:34px">週${label}</b><select onchange="S.weekdayModes[${i}]=this.value;S.planned={};render()">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<option ${S.weekdayModes[i]===x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('');
  return `${card('📅 每週預設模式',`<div class="weekgrid">${weekly}</div><div class="small" style="margin-top:8px">預設：六日家庭日、一四婆婆家，其餘家事日。單一日期的手動設定會優先於這裡。</div>`)}
  <div class="between"><button class="mini" onclick="shiftMonth(-1)">‹</button><h1>${y} 年 ${m+1} 月</h1><button class="mini" onclick="shiftMonth(1)">›</button></div>
  <div class="month-head small">${days.map(x=>`<div>${x}</div>`).join('')}</div><div class="calendar">${cells}</div>
- ${card('選取日期',`<b>${S.selected}</b><div style="height:8px"></div><div class="grid2">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<button class="mode ${mode()===x?'active':''}" onclick="S.dateModes[S.selected]='${x}';render()">${emo(x)} ${x}</button>`).join('')}</div><div class="small" style="margin-top:8px">這裡是單日覆寫；清除覆寫後會回到每週預設。</div><div style="height:8px"></div><button class="mini" onclick="delete S.dateModes[S.selected];render()">使用每週預設</button><div style="height:8px"></div><button class="btn full" onclick="S.tab='today';render()">查看這一天</button>`)}
+ ${card('選取日期',`<b>${S.selected}</b><div style="height:8px"></div><div class="grid2">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<button class="mode ${mode()===x?'active':''}" onclick="S.dateModes[S.selected]='${x}';invalidatePlan();render()">${emo(x)} ${x}</button>`).join('')}</div><div class="small" style="margin-top:8px">這裡是單日覆寫；清除覆寫後會回到每週預設。</div><div style="height:8px"></div><button class="mini" onclick="delete S.dateModes[S.selected];invalidatePlan();render()">使用每週預設</button><div style="height:8px"></div><button class="btn full" onclick="S.tab='today';render()">查看這一天</button>`)}
  `;
 }
 function familyView(){
@@ -266,6 +288,7 @@ function selectPriorityTask(name){
  if(!S.priorities[S.selected].includes(name))S.priorities[S.selected].push(name);
  (S.manualAdd[S.selected]??=[]);
  if(!S.manualAdd[S.selected].includes(name))S.manualAdd[S.selected].push(name);
+ invalidatePlan();
  S.manualRemove[S.selected]=(S.manualRemove[S.selected]||[]).filter(x=>x!==name);
  pdlg.close();render();
 }
@@ -274,7 +297,7 @@ function addPriority(){const q=(document.getElementById('pin')?.value||'').trim(
 function removePriority(n){
  S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(x=>x!==n);
  S.manualAdd[S.selected]=(S.manualAdd[S.selected]||[]).filter(x=>x!==n);
- render();
+ invalidatePlan();render();
 }
 function toggleDone(name,even=false){S.done[S.selected]??={};let nv=!S.done[S.selected][name];S.done[S.selected][name]=nv;if(nv){S.history.push({date:S.selected,name,by:S.role});if(!even){let t=S.tasks.find(x=>x.name===name);if(t)t.lastDone=S.selected}}else{S.history=S.history.filter(x=>!(x.date===S.selected&&x.name===name));if(!even){let t=S.tasks.find(x=>x.name===name);if(t&&t.lastDone===S.selected){let prev=S.history.filter(x=>x.name===name).map(x=>x.date).sort().pop();t.lastDone=prev||null}}}render()}
 function shiftMonth(n){let x=d(S.selected);x.setMonth(x.getMonth()+n);x.setDate(1);S.selected=ds(x);render()}
