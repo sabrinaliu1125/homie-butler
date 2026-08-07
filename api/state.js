@@ -1,16 +1,38 @@
 import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req, res) {
-  const expectedPin = process.env.HOMIE_FAMILY_PIN;
-  const providedPin = req.headers['x-homie-pin'];
+  res.setHeader('Cache-Control', 'no-store');
 
-  if (!expectedPin || providedPin !== expectedPin) {
-    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
+    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+  }
+
+  const expectedPin = String(process.env.HOMIE_FAMILY_PIN || '').trim();
+  const body = req.body || {};
+  const providedPin = String(body.pin || '').trim();
+  const action = body.action;
+
+  if (!expectedPin) {
+    return res.status(500).json({
+      ok: false,
+      error: 'HOMIE_FAMILY_PIN is not configured'
+    });
+  }
+
+  if (providedPin !== expectedPin) {
+    return res.status(401).json({
+      ok: false,
+      error: 'Unauthorized'
+    });
   }
 
   const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
   if (!databaseUrl) {
-    return res.status(500).json({ ok: false, error: 'Database URL missing' });
+    return res.status(500).json({
+      ok: false,
+      error: 'Database URL missing'
+    });
   }
 
   const sql = neon(databaseUrl);
@@ -24,7 +46,7 @@ export default async function handler(req, res) {
       )
     `;
 
-    if (req.method === 'GET') {
+    if (action === 'get') {
       const rows = await sql`
         SELECT data, updated_at
         FROM homie_state
@@ -32,7 +54,10 @@ export default async function handler(req, res) {
       `;
 
       if (rows.length === 0) {
-        return res.status(200).json({ ok: true, data: null });
+        return res.status(200).json({
+          ok: true,
+          data: null
+        });
       }
 
       return res.status(200).json({
@@ -42,11 +67,14 @@ export default async function handler(req, res) {
       });
     }
 
-    if (req.method === 'POST') {
-      const data = req.body;
+    if (action === 'save') {
+      const data = body.data;
 
-      if (!data || typeof data !== 'object') {
-        return res.status(400).json({ ok: false, error: 'Invalid data' });
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return res.status(400).json({
+          ok: false,
+          error: 'Invalid data'
+        });
       }
 
       await sql`
@@ -58,14 +86,21 @@ export default async function handler(req, res) {
           updated_at = NOW()
       `;
 
-      return res.status(200).json({ ok: true });
+      return res.status(200).json({
+        ok: true
+      });
     }
 
-    res.setHeader('Allow', ['GET', 'POST']);
-    return res.status(405).json({ ok: false, error: 'Method not allowed' });
+    return res.status(400).json({
+      ok: false,
+      error: 'Invalid action'
+    });
 
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message });
+    console.error('Homie state API error:', error);
+    return res.status(500).json({
+      ok: false,
+      error: 'Database operation failed'
+    });
   }
 }
