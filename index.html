@@ -30,12 +30,14 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .member-badge{display:inline-block;padding:3px 7px;border-radius:999px;background:#eef3ef;color:#476457;font-size:12px;margin-left:6px}
 .action-row{display:flex;gap:6px;flex-wrap:wrap}
 
-.syncbar{margin-top:8px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.syncbar{margin-top:6px;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
 .syncdot{width:8px;height:8px;border-radius:50%;background:#aaa;display:inline-block}
-.syncdot.ok{background:#6d9b7c}.syncdot.busy{background:#d6a34b}.syncdot.err{background:#b4493d}
+.syncdot.ok{background:#6d9b7c}
+.syncdot.busy{background:#d6a34b}
+.syncdot.err{background:#b4493d}
 </style></head>
 <body>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.0 Beta · 雲端同步版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">本機模式</span></div></div><select id="role" class="pill" style="width:auto"></select></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.0 Beta · 雲端同步</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><select id="role" class="pill" style="width:auto"></select></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -91,70 +93,84 @@ function localYmd(x){
 const today=()=>localYmd(new Date());
 function d(s){let [y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x)}
 function ds(x){return localYmd(x)}
-let cloudTimer=null, cloudBusy=false, cloudLoaded=false;
+let cloudReady=false, cloudBusy=false, cloudTimer=null;
+
 function setSyncStatus(kind,text){
- const d=document.getElementById('syncDot'),t=document.getElementById('syncText');
- if(d){d.className='syncdot'+(kind?' '+kind:'')}
- if(t)t.textContent=text;
+ const dot=document.getElementById('syncDot');
+ const txt=document.getElementById('syncText');
+ if(dot)dot.className='syncdot'+(kind?' '+kind:'');
+ if(txt)txt.textContent=text;
 }
-function familyPin(){
+
+function getFamilyPin(){
  let pin=localStorage.getItem('homie_family_pin')||'';
  if(!/^\d{6}$/.test(pin)){
    pin=(prompt('請輸入 Homie 家庭 6 位數 PIN')||'').trim();
-   if(/^\d{6}$/.test(pin))localStorage.setItem('homie_family_pin',pin);
+   if(/^\d{6}$/.test(pin)) localStorage.setItem('homie_family_pin',pin);
  }
  return pin;
 }
-function save(){
- localStorage.setItem('homie12',JSON.stringify(S));
- if(cloudLoaded){
-   clearTimeout(cloudTimer);
-   cloudTimer=setTimeout(()=>pushCloudState(),500);
- }
-}
-async function cloudRequest(method,body){
- const pin=familyPin();
- if(!pin)throw new Error('需要 6 位數家庭 PIN');
- const res=await fetch('/api/state',{
+
+async function apiRequest(method, payload){
+ const pin=getFamilyPin();
+ if(!pin) throw new Error('需要家庭 PIN');
+ const options={
    method,
-   headers:{'Content-Type':'application/json','x-homie-pin':pin},
-   body:body?JSON.stringify(body):undefined
- });
+   headers:{'Content-Type':'application/json','x-homie-pin':pin}
+ };
+ if(payload!==undefined) options.body=JSON.stringify(payload);
+ const res=await fetch('/api/state',options);
  if(res.status===401){
    localStorage.removeItem('homie_family_pin');
    throw new Error('家庭 PIN 不正確');
  }
- if(!res.ok)throw new Error('雲端連線失敗 '+res.status);
+ if(!res.ok) throw new Error('雲端錯誤 '+res.status);
  return res.json();
 }
+
+function save(){
+ localStorage.setItem('homie12',JSON.stringify(S));
+ if(cloudReady){
+   clearTimeout(cloudTimer);
+   cloudTimer=setTimeout(pushCloudState,450);
+ }
+}
+
 async function pushCloudState(){
- if(cloudBusy)return;
+ if(cloudBusy || !cloudReady) return;
  try{
-   cloudBusy=true;setSyncStatus('busy','同步中…');
-   await cloudRequest('POST',{state:S});
+   cloudBusy=true;
+   setSyncStatus('busy','同步中…');
+   await apiRequest('POST',S);
    setSyncStatus('ok','已同步');
  }catch(e){
-   console.error(e);setSyncStatus('err','同步失敗');
- }finally{cloudBusy=false}
+   console.error(e);
+   setSyncStatus('err','同步失敗');
+ }finally{
+   cloudBusy=false;
+ }
 }
+
 async function initCloud(){
  try{
    setSyncStatus('busy','連接雲端…');
-   const data=await cloudRequest('GET');
-   if(data && data.state){
-     S=data.state;
+   const result=await apiRequest('GET');
+
+   if(result && result.data){
+     S=result.data;
      localStorage.setItem('homie12',JSON.stringify(S));
-     cloudLoaded=true;
+     cloudReady=true;
      setSyncStatus('ok','雲端已同步');
      render();
    }else{
-     cloudLoaded=true;
+     // First device seeds current local state to cloud.
+     cloudReady=true;
      await pushCloudState();
      setSyncStatus('ok','已建立家庭雲端資料');
    }
  }catch(e){
    console.error(e);
-   cloudLoaded=false;
+   cloudReady=false;
    setSyncStatus('err','目前使用本機資料');
  }
 }
