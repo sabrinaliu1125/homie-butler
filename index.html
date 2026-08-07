@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f4ee"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homie">
-<title>Homie Butler Alpha v0.11.2</title>
+<title>Homie Butler Alpha v0.11.3</title>
 <style>
 :root{--bg:#f7f4ee;--card:#fffdfa;--ink:#2f3532;--muted:#77807a;--sage:#739887;--sage2:#dfe9e3;--yellow:#f2d17f;--amber:#dca856;--line:#e8e3da;--radius:22px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif}
@@ -26,9 +26,16 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .translation-pending{background:#f6f1e6;border-radius:12px;padding:9px;margin-top:7px;font-size:12px;color:#7a6743}
 </style></head>
 <body>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">Alpha v0.11.2 · 修正版</div></div><select id="role" class="pill" style="width:auto"><option value="manager">管理者</option><option value="helper">外傭</option><option value="observer">家人</option></select></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">Alpha v0.11.3 · 修正版</div></div><select id="role" class="pill" style="width:auto"><option value="manager">管理者</option><option value="helper">外傭</option><option value="observer">家人</option></select></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
+<dialog id="hadddlg"><div class="db">
+<div class="between"><h3>Tambah pekerjaan｜自己加工作</h3><button class="mini" onclick="hadddlg.close()">Tutup｜關閉</button></div>
+<div class="small">Pilih pekerjaan yang ingin dikerjakan lebih hari ini.｜從既有家事庫選擇今天想多做的工作。</div>
+<div style="height:8px"></div>
+<input id="haddin" placeholder="Cari pekerjaan｜搜尋家事" oninput="renderHelperAddMatches()">
+<div id="helperAddMatches" class="search-results"></div>
+</div></dialog>
 <dialog id="sdlg"><div class="db">
 <div class="between"><h3>調整今日安排</h3><button class="mini" onclick="sdlg.close()">關閉</button></div>
 <div class="small">任何模式都可以手動加入工作；Homie 不會阻止管理者覆寫。</div>
@@ -39,7 +46,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 <dialog id="pdlg"><div class="db"><div class="between"><h3>加入今天優先</h3><button class="mini" onclick="pdlg.close()">關閉</button></div><div class="small">輸入關鍵字後，從已設定的家事中選擇。</div><div style="height:8px"></div><input id="pin" placeholder="搜尋家事，例如：客廳、排水孔" oninput="renderPriorityMatches()"><div id="priorityMatches" class="search-results"></div><div style="height:8px"></div><button class="btn secondary full" onclick="prepareNewTaskFromPriority()">找不到？新增到家事庫</button></div></dialog>
 <script>
 const ID={'洗衣服':'Mencuci pakaian','晾衣服':'Menjemur pakaian','收衣服':'Merapikan pakaian','收垃圾':'Mengumpulkan sampah','清貓砂':'Membersihkan kotak pasir kucing','倒除濕機水':'Mengosongkan air dehumidifier','洗貓碗':'Mencuci mangkuk kucing','洗奶瓶與擠乳器':'Mencuci botol dan pompa ASI','餐後收拾':'Merapikan setelah makan','主臥完整清潔':'Membersihkan kamar tidur utama','妹妹房完整清潔':'Membersihkan kamar anak perempuan','弟弟房完整清潔':'Membersihkan kamar anak laki-laki','客廳完整清潔':'Membersihkan ruang tamu','餐廳完整清潔':'Membersihkan ruang makan','廚房完整清潔':'Membersihkan dapur','後陽台完整清潔':'Membersihkan balkon belakang','客廳廁所完整清潔':'Membersihkan toilet ruang tamu','工作室完整清潔':'Membersihkan ruang kerja','排水孔清理':'Membersihkan saluran pembuangan','洗衣機清潔':'Membersihkan mesin cuci','溫奶':'Menghangatkan ASI','早餐／喝奶':'Sarapan / minum susu','送孩子上學':'Mengantar anak ke sekolah','接孩子':'Menjemput anak','晚餐':'Makan malam','睡前奶':'Susu sebelum tidur','很好':'Baik sekali','正常':'Baik','有點累':'Agak lelah','不舒服':'Kurang sehat','家庭日':'Hari keluarga','家事日':'Hari pekerjaan rumah','婆婆家':'Rumah ibu mertua','照護日':'Hari perawatan','外傭休假':'Hari libur','新流程':'Alur baru','新維持工作':'Rutinitas baru','新家事':'Pekerjaan baru'};
-const defaults={role:'manager',tab:'today',selected:new Date().toISOString().slice(0,10),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],notes:{},priorities:{},done:{},history:[],flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
+const defaults={role:'manager',tab:'today',selected:localYmd(new Date()),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],notes:{},priorities:{},done:{},history:[],flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
 tasks:[
 {name:'主臥完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:90,lastDone:null},
 {name:'妹妹房完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:75,lastDone:null},
@@ -55,7 +62,7 @@ tasks:[
 routine:[
 {name:'洗衣服',minutes:20},{name:'晾衣服',minutes:20},{name:'收衣服',minutes:20},{name:'收垃圾',minutes:10},{name:'清貓砂',minutes:10},{name:'倒除濕機水',minutes:10},{name:'洗貓碗',minutes:10,preferred:'傍晚'},{name:'餐後收拾',minutes:25},{name:'洗奶瓶與擠乳器',minutes:20}]
 };
-let S=JSON.parse(localStorage.getItem('homie112')||localStorage.getItem('homie111')||localStorage.getItem('homie11')||localStorage.getItem('homie10')||localStorage.getItem('homie09')||localStorage.getItem('homie07')||'null')||defaults;
+let S=JSON.parse(localStorage.getItem('homie113')||localStorage.getItem('homie112')||localStorage.getItem('homie111')||localStorage.getItem('homie11')||localStorage.getItem('homie10')||localStorage.getItem('homie09')||localStorage.getItem('homie07')||'null')||defaults;
 if(!S.routine && S.evening) S.routine=S.evening;
 if(!S.routine) S.routine=JSON.parse(JSON.stringify(defaults.routine));
 if(!S.flow) S.flow=JSON.parse(JSON.stringify(defaults.flow));
@@ -66,13 +73,19 @@ if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
 if(!S.planned) S.planned={};
 
-const V=document.getElementById('view'),R=document.getElementById('role'),pdlg=document.getElementById('pdlg'),sdlg=document.getElementById('sdlg');R.value=S.role;
-const today=()=>new Date().toISOString().slice(0,10);function d(s){let [y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x)}function ds(x){return x.toISOString().slice(0,10)}function save(){localStorage.setItem('homie112',JSON.stringify(S))}
+const V=document.getElementById('view'),R=document.getElementById('role'),pdlg=document.getElementById('pdlg'),sdlg=document.getElementById('sdlg'),hadddlg=document.getElementById('hadddlg');R.value=S.role;
+function localYmd(x){
+ const y=x.getFullYear(),m=String(x.getMonth()+1).padStart(2,'0'),d=String(x.getDate()).padStart(2,'0');
+ return `${y}-${m}-${d}`;
+}
+const today=()=>localYmd(new Date());
+function d(s){let [y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x)}
+function ds(x){return localYmd(x)}function save(){localStorage.setItem('homie113',JSON.stringify(S))}
 function mode(date=S.selected){
  if(S.dateModes[date]) return S.dateModes[date];
  return S.weekdayModes[d(date).getDay()] || S.modeDefault;
 }
-function capacityMinutes(date=S.selected){return Number(S.dateCapacity[date]||240)}
+function capacityMinutes(date=S.selected){return S.dateCapacity[date]===undefined?240:Number(S.dateCapacity[date])}
 function setCapacityHours(h){S.dateCapacity[S.selected]=Math.max(0,Number(h)||0)*60;invalidatePlan();render()}
 function manualAdded(date=S.selected){return S.manualAdd[date]||[]}
 function manualRemoved(date=S.selected){return S.manualRemove[date]||[]}function emo(m){return {'家事日':'🧹','家庭日':'👨‍👩‍👧','婆婆家':'👵','照護日':'👶','外傭休假':'🌴'}[m]||'🏡'}function card(t,b,c=''){return `<section class="card ${c}"><h3>${t}</h3>${b}</section>`}function tr(x){return ID[x]||x}
@@ -199,6 +212,23 @@ function addToToday(name){
  S.manualRemove[S.selected]=(S.manualRemove[S.selected]||[]).filter(x=>x!==name);
  sdlg.close();render();
 }
+function openHelperAdd(){hadddlg.showModal();setTimeout(renderHelperAddMatches,0)}
+function renderHelperAddMatches(){
+ const box=document.getElementById('helperAddMatches'),input=document.getElementById('haddin');
+ if(!box||!input)return;
+ const q=input.value.trim().toLowerCase();
+ const already=new Set(candidates(S.selected).map(t=>t.name));
+ let matches=S.tasks.filter(t=>(!q||t.name.toLowerCase().includes(q))&&!already.has(t.name)).slice(0,12);
+ box.innerHTML=matches.length?matches.map(t=>`<button class="search-item" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')"><b>${tr(t.name)}</b><div class="small">${t.name} · ± ${t.minutes} menit｜分鐘</div></button>`).join(''):'<div class="small" style="padding:12px">Tidak ada pilihan lain.｜沒有其他可選工作。</div>';
+}
+function helperAddToToday(name){
+ (S.manualAdd[S.selected]??=[]);
+ if(!S.manualAdd[S.selected].includes(name))S.manualAdd[S.selected].push(name);
+ S.manualRemove[S.selected]=(S.manualRemove[S.selected]||[]).filter(x=>x!==name);
+ invalidatePlan();
+ hadddlg.close();
+ render();
+}
 function taskRow(t,helper=false,even=false){
  let dn=completed(S.selected,t.name),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';
  if(helper){
@@ -210,27 +240,37 @@ function taskRow(t,helper=false,even=false){
 }
 function helperView(){
  let sts=[['很好','Baik sekali'],['正常','Baik'],['有點累','Agak lelah'],['不舒服','Kurang sehat']];
- let w=workload(S.selected);
+ let base=workload(S.selected);
+ let forced=new Set([...(S.priorities[S.selected]||[]),...manualAdded(S.selected)]);
+ let completedItems=base.items.filter(t=>completed(S.selected,t.name));
+ let forcedItems=base.items.filter(t=>forced.has(t.name)&&!completed(S.selected,t.name));
+ let normalItems=base.items.filter(t=>!forced.has(t.name)&&!completed(S.selected,t.name));
+ let scheduled=[...completedItems,...forcedItems,...normalItems];
+ let moved=[];
  if(S.health==='有點累'){
-   let forced=new Set([...(S.priorities[S.selected]||[]),...manualAdded(S.selected)]);
-   let forcedItems=w.items.filter(t=>forced.has(t.name)||completed(S.selected,t.name));
-   let normal=w.items.filter(t=>!forced.has(t.name)&&!completed(S.selected,t.name));
-   w.items=[...forcedItems,...normal.slice(0,Math.max(1,Math.ceil(normal.length/2)))];
+   const keepCount=Math.max(0,Math.ceil(normalItems.length/2));
+   scheduled=[...completedItems,...forcedItems,...normalItems.slice(0,keepCount)];
+   moved=normalItems.slice(keepCount);
  }
  if(S.health==='不舒服'){
-   let forced=new Set([...(S.priorities[S.selected]||[]),...manualAdded(S.selected)]);
-   w.items=w.items.filter(t=>forced.has(t.name)||completed(S.selected,t.name));
+   scheduled=[...completedItems,...forcedItems];
+   moved=normalItems;
  }
+ let extraBase=extraSuggestions(S.selected);
+ let seen=new Set(scheduled.map(t=>t.name));
+ let suggestions=[...moved,...extraBase].filter((t,i,a)=>!seen.has(t.name)&&a.findIndex(x=>x.name===t.name)===i);
+
  let flow=S.flow.map(f=>`<div class="flow row bilingual"><div style="width:52px" class="small">${f.time}</div><div style="flex:1"><b>${tr(f.name)}</b><span class="zh">${f.name} · ${f.who}</span></div></div>`).join('');
  let notes=noteBlock(S.selected,true);
- let suggested=extraSuggestions(S.selected).map(t=>`<div class="task bilingual"><b>${tr(t.name)}</b><span class="zh">${t.name}</span><div class="small">Jika ada waktu｜有空再做</div></div>`).join()||'<div class="small">Tidak ada saran tambahan hari ini.｜今天沒有額外建議。</div>';
+ let sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div><b>${tr(t.name)}</b><span class="zh">${t.name}</span><div class="small">${moved.some(x=>x.name===t.name)?'Dipindahkan karena kondisi hari ini｜因今天身體狀況移到建議':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="helperAddToToday('${t.name.replace(/'/g,"\'")}')">＋ Kerjakan｜加入</button></div></div>`).join('')||'<div class="small">Tidak ada saran tambahan hari ini.｜今天沒有額外建議。</div>';
+
  return `<div class="small">Selamat pagi｜早安</div><h1>Hari ini｜今天</h1>
  ${card('Kondisi hari ini｜身體狀態',`<div class="statusgrid">${sts.map(([zh,id])=>`<button class="status ${S.health===zh?'active':''}" onclick="S.health='${zh}';render()">${id}<br><span class="small">${zh}</span></button>`).join('')}</div>`)}
  ${card('📝 Catatan hari ini｜今日備註',notes)}
  ${card('🌞 Alur hari ini｜今日流程',flow)}
- ${card('🧹 Pekerjaan terjadwal｜今日安排',w.items.map(t=>taskRow(t,true)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal.｜今天沒有安排工作。</div>')}
+ ${card('🧹 Pekerjaan terjadwal｜今日安排',scheduled.map(t=>taskRow(t,true)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal.｜今天沒有安排工作。</div>')}
  ${card('🏠 Rutinitas harian｜每日維持',S.routine.map(t=>taskRow(t,true,true)).join(''))}
- ${card('✨ Saran tambahan Homie｜Homie 額外建議',suggested)}
+ ${card('✨ Saran tambahan Homie｜Homie 額外建議',sug+`<div style="height:8px"></div><button class="btn secondary full" onclick="openHelperAdd()">＋ Tambah pekerjaan sendiri｜自己增加打掃工作</button>`)}
  `;
 }
 function observerView(){return `<div class="small">家庭觀察者</div><h1>${S.selected}</h1>${card('今日模式',`${emo(mode())} ${mode()}`)}${card('📝 今日備註',noteBlock(S.selected,true))}${card('⭐ 今天優先',(S.priorities[S.selected]||[]).map(x=>`<div class="task"><b>${x}</b></div>`).join('')+`<button class="btn secondary full" onclick="pdlg.showModal();setTimeout(renderPriorityMatches,0)">＋ 加入優先</button>`)}${card('今日完成',historyForDate(S.selected))}`}
