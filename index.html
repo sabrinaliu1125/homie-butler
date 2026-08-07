@@ -103,12 +103,17 @@ function setSyncStatus(kind,text){
 }
 
 function getFamilyPin(){
+ // Keep the verified family PIN on this device/browser so normal navigation
+ // and cloud autosaves do not ask for it again.
  let pin=localStorage.getItem('homie_family_pin')||'';
- if(!/^\d{6}$/.test(pin)){
-   pin=(prompt('請輸入 Homie 家庭 6 位數 PIN')||'').trim();
-   if(/^\d{6}$/.test(pin)) localStorage.setItem('homie_family_pin',pin);
+ if(/^\d{6}$/.test(pin)) return pin;
+
+ pin=(prompt('請輸入 Homie 家庭 6 位數 PIN')||'').trim();
+ if(/^\d{6}$/.test(pin)){
+   localStorage.setItem('homie_family_pin',pin);
+   return pin;
  }
- return pin;
+ return '';
 }
 
 async function apiRequest(method, payload){
@@ -307,7 +312,7 @@ function removeFromToday(name){
  (S.manualRemove[S.selected]??=[]);
  if(!S.manualRemove[S.selected].includes(name))S.manualRemove[S.selected].push(name);invalidatePlan();
  S.manualAdd[S.selected]=(S.manualAdd[S.selected]||[]).filter(x=>x!==name);
- S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(x=>x!==name);
+ S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(x=>(typeof x==='string'?x:x.name)!==name);
  render();
 }
 function openSchedulePicker(){sdlg.showModal();setTimeout(renderScheduleMatches,0)}
