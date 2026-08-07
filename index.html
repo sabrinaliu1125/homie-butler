@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f4ee"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homie">
+<title>Homie Butler Alpha v0.9.1</title>
+<style>
+:root{--bg:#f7f4ee;--card:#fffdfa;--ink:#2f3532;--muted:#77807a;--sage:#739887;--sage2:#dfe9e3;--yellow:#f2d17f;--amber:#dca856;--line:#e8e3da;--radius:22px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif}
+button,input,select,textarea{font:inherit}.app{max-width:560px;margin:auto;min-height:100vh;padding:18px 16px 100px}.top,.between,.row{display:flex;align-items:center}.top,.between{justify-content:space-between;gap:10px}.row{gap:9px}.brand{font-weight:800}.small{font-size:13px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:12px 0;box-shadow:0 6px 22px rgba(60,70,64,.05)}.card h3{margin:0 0 9px}.homie{border-left:5px solid var(--sage)}.priority{border-left:5px solid var(--yellow)}.history{border-left:5px solid #b6a98e}
+.btn,.mini,.pill,.mode,.day{border:1px solid var(--line);border-radius:14px;background:white;color:var(--ink)}.btn{border:0;background:var(--sage);color:white;font-weight:700;padding:11px 14px}.btn.secondary{background:var(--sage2);color:#315245}.btn.full{width:100%}.mini{padding:7px 10px}.pill{padding:8px 11px}
+.task,.flow{padding:12px 0;border-bottom:1px solid var(--line)}.task:last-child,.flow:last-child{border-bottom:0}.done{background:var(--sage2);border-radius:14px;padding-left:10px;padding-right:10px}.done .name:before{content:"✓ ";font-weight:900;color:#315245}
+.tag{display:inline-block;padding:4px 8px;border-radius:999px;background:#f2eee7;font-size:12px;color:#68716b}.locked{background:#f5ead2}.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);max-width:560px;width:100%;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:#fffdfaf5;border-top:1px solid var(--line);backdrop-filter:blur(12px);z-index:10}.tab{border:0;background:none;color:var(--muted);padding:8px;border-radius:13px}.tab.active{background:var(--sage2);color:#315245;font-weight:700}
+input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:12px;background:white;color:var(--ink)}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.metric>div{background:#f4f0e9;border-radius:13px;padding:10px;text-align:center}.metric b{font-size:19px;display:block}
+.month-head{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.day{min-height:62px;padding:6px 3px;text-align:center;font-size:12px}.day.active{background:var(--sage2);border-color:var(--sage)}.day.muted{opacity:.35}.day .num{font-size:14px;font-weight:700}.day .modeTxt{font-size:10px;margin-top:4px}
+.bar{height:10px;background:#ece7df;border-radius:999px;overflow:hidden}.fill{height:100%;background:var(--sage)}dialog{border:0;border-radius:20px;padding:0;width:calc(100% - 28px);max-width:460px}dialog::backdrop{background:#0005}.db{padding:18px}.statusgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}.status{padding:11px 4px;border:1px solid var(--line);border-radius:14px;background:white}.status.active{background:var(--sage2);border-color:var(--sage)}
+</style></head>
+<body>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">Alpha v0.9.1 · 手機測試版</div></div><select id="role" class="pill" style="width:auto"><option value="manager">管理者</option><option value="helper">外傭</option><option value="observer">家人</option></select></div><main id="view"></main></div>
+<nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
+<dialog id="pdlg"><div class="db"><div class="between"><h3>新增今天優先</h3><button class="mini" onclick="pdlg.close()">關閉</button></div><input id="pin" placeholder="例如：客廳完整清潔"><div style="height:8px"></div><button class="btn full" onclick="addPriority()">加入並重新排程</button></div></dialog>
+<script>
+const ID={'洗衣服':'Mencuci pakaian','晾衣服':'Menjemur pakaian','收衣服':'Merapikan pakaian','收垃圾':'Mengumpulkan sampah','清貓砂':'Membersihkan kotak pasir kucing','倒除濕機水':'Mengosongkan air dehumidifier','洗貓碗':'Mencuci mangkuk kucing','洗奶瓶與擠乳器':'Mencuci botol dan pompa ASI','餐後收拾':'Merapikan setelah makan','主臥完整清潔':'Membersihkan kamar tidur utama','妹妹房完整清潔':'Membersihkan kamar anak perempuan','弟弟房完整清潔':'Membersihkan kamar anak laki-laki','客廳完整清潔':'Membersihkan ruang tamu','餐廳完整清潔':'Membersihkan ruang makan','廚房完整清潔':'Membersihkan dapur','後陽台完整清潔':'Membersihkan balkon belakang','客廳廁所完整清潔':'Membersihkan toilet ruang tamu','工作室完整清潔':'Membersihkan ruang kerja'};
+const defaults={role:'manager',tab:'today',selected:new Date().toISOString().slice(0,10),modeDefault:'家事日',dateModes:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],notes:{},priorities:{},done:{},history:[],flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
+tasks:[
+{name:'主臥完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:90,lastDone:null},
+{name:'妹妹房完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:75,lastDone:null},
+{name:'弟弟房完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:75,lastDone:null},
+{name:'客廳完整清潔',type:'彈性家事',minDays:5,maxDays:10,minutes:60,lastDone:null},
+{name:'餐廳完整清潔',type:'彈性家事',minDays:5,maxDays:10,minutes:45,lastDone:null},
+{name:'廚房完整清潔',type:'彈性家事',minDays:5,maxDays:10,minutes:75,lastDone:null},
+{name:'後陽台完整清潔',type:'彈性家事',minDays:10,maxDays:21,minutes:60,lastDone:null},
+{name:'客廳廁所完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:45,lastDone:null},
+{name:'工作室完整清潔',type:'彈性家事',minDays:10,maxDays:21,minutes:60,lastDone:null},
+{name:'排水孔清理',type:'彈性家事',minDays:30,maxDays:60,minutes:30,lastDone:null},
+{name:'洗衣機清潔',type:'彈性家事',minDays:30,maxDays:45,minutes:30,lastDone:null}],
+routine:[
+{name:'洗衣服',minutes:20},{name:'晾衣服',minutes:20},{name:'收衣服',minutes:20},{name:'收垃圾',minutes:10},{name:'清貓砂',minutes:10},{name:'倒除濕機水',minutes:10},{name:'洗貓碗',minutes:10,preferred:'傍晚'},{name:'餐後收拾',minutes:25},{name:'洗奶瓶與擠乳器',minutes:20}]
+};
+let S=JSON.parse(localStorage.getItem('homie09')||localStorage.getItem('homie07')||'null')||defaults;
+if(!S.routine && S.evening) S.routine=S.evening;
+if(!S.routine) S.routine=JSON.parse(JSON.stringify(defaults.routine));
+if(!S.flow) S.flow=JSON.parse(JSON.stringify(defaults.flow));
+if(!S.tasks) S.tasks=JSON.parse(JSON.stringify(defaults.tasks));
+
+const V=document.getElementById('view'),R=document.getElementById('role'),pdlg=document.getElementById('pdlg');R.value=S.role;
+const today=()=>new Date().toISOString().slice(0,10);function d(s){let [y,m,x]=s.split('-').map(Number);return new Date(y,m-1,x)}function ds(x){return x.toISOString().slice(0,10)}function save(){localStorage.setItem('homie09',JSON.stringify(S))}
+function mode(date=S.selected){return S.dateModes[date]||S.modeDefault}function emo(m){return {'家事日':'🧹','家庭日':'👨‍👩‍👧','婆婆家':'👵','照護日':'👶','外傭休假':'🌴'}[m]||'🏡'}function card(t,b,c=''){return `<section class="card ${c}"><h3>${t}</h3>${b}</section>`}function tr(x){return ID[x]||x}
+function daysSince(last,date){if(!last)return 999;return Math.floor((d(date)-d(last))/86400000)}function completed(date,name){return !!(S.done[date]||{})[name]}
+function duePool(date){
+ if(mode(date)!=='家事日') return [];
+ let pri=(S.priorities[date]||[]);
+ let list=S.tasks.filter(t=>{
+   if(completed(date,t.name)) return true;
+   return daysSince(t.lastDone,date)>=t.minDays;
+ });
+ list.sort((a,b)=>{
+   let ap=pri.includes(a.name),bp=pri.includes(b.name);
+   if(ap!==bp) return bp-ap;
+   let ar=daysSince(a.lastDone,date)/Math.max(1,a.maxDays);
+   let br=daysSince(b.lastDone,date)/Math.max(1,b.maxDays);
+   return br-ar;
+ });
+ return list;
+}
+function candidates(date){
+ let pool=duePool(date),budget=300,out=[],used=0;
+ for(const t of pool){
+   if(completed(date,t.name)){ out.push(t); used+=t.minutes||0; continue; }
+   if(used+(t.minutes||0)<=budget){out.push(t);used+=t.minutes||0}
+ }
+ return out;
+}
+function extraSuggestions(date){
+ if(mode(date)!=='家事日')return [];
+ let scheduled=new Set(candidates(date).map(t=>t.name));
+ let used=candidates(date).reduce((s,t)=>s+(t.minutes||0),0);
+ let remaining=Math.max(0,300-used);
+ return S.tasks.filter(t=>!scheduled.has(t.name) && !completed(date,t.name))
+   .filter(t=>daysSince(t.lastDone,date)>=Math.max(1,Math.floor(t.minDays*0.7)))
+   .sort((a,b)=>daysSince(b.lastDone,date)-daysSince(a.lastDone,date))
+   .filter(t=>(t.minutes||0)<=remaining)
+   .slice(0,2);
+}
+function workload(date){let a=candidates(date),m=a.reduce((s,t)=>s+t.minutes,0);return {items:a,mins:m,left:300-m}}
+function noteBlock(date,can=true){let rows=(S.notes[date]||[]).map(n=>`<div class="task"><b>${n.by}</b><div>${n.text}</div></div>`).join('')||'<div class="small">沒有特別備註。</div>';return rows+(can?`<textarea id="note" rows="2" placeholder="今天有特別事情可以寫在這裡"></textarea><div style="height:7px"></div><button class="btn secondary full" onclick="addNote()">＋ 加入備註</button>`:'')}
+function todayView(){
+ if(S.role==='helper')return helperView();if(S.role==='observer')return observerView();
+ let w=workload(S.selected),flow=S.flow.map(f=>`<div class="flow row"><div style="width:52px" class="small">${f.time}</div><div style="flex:1"><b>${f.name}</b><div class="small">${f.who}</div></div><span class="tag locked">固定</span></div>`).join('');
+ let tasks=w.items.map(t=>taskRow(t,false)).join('')||'<div class="small">這一天沒有安排白天彈性家事。</div>';
+ let evening=S.routine.map(t=>taskRow(t,false,true)).join('');
+ let pri=(S.priorities[S.selected]||[]).map(x=>`<div class="task between"><b>${x}</b><button class="mini" onclick="removePriority('${x}')">取消</button></div>`).join('')||'<div class="small">沒有今天優先。</div>';
+ return `<div class="between"><div><div class="small">${S.selected}</div><h1>${emo(mode())} ${mode()}</h1></div><button class="pill" onclick="S.tab='calendar';render()">看日曆</button></div>
+ ${card('🏡 Homie 本日建議',`08:50～15:50 約有 7 小時在家，扣除約 2 小時休息，Homie 以 <b>5 小時</b> 作為「建議工作」的排程上限；每日維持不計入這 5 小時，她可以依方便的時間完成。`,'homie')}
+ ${card('⏱ 建議工作量',`<div class="grid3 metric"><div><b>${(w.mins/60).toFixed(1)}h</b><span class="small">建議安排</span></div><div><b>${(w.left/60).toFixed(1)}h</b><span class="small">保留</span></div><div><b>5h</b><span class="small">上限</span></div></div><div class="bar" style="margin-top:10px"><div class="fill" style="width:${Math.min(100,w.mins/3)}%"></div></div>`)}
+ ${card('📝 今日備註',noteBlock(S.selected,true))}
+ ${card('🌞 今日流程',flow)}
+ ${card('⭐ 今天優先',pri+`<div style="height:8px"></div><button class="btn secondary full" onclick="pdlg.showModal()">＋ 新增今天優先</button>`,'priority')}
+ ${card('🧹 今日安排',tasks)}
+ ${card('🏠 每日維持',evening)}
+ ${card('✨ Homie 額外建議',extraSuggestions(S.selected).map(t=>`<div class="task"><div class="between"><div><b>${t.name}</b><div class="small">${t.lastDone?'上次：'+t.lastDone:'尚無完成紀錄'} · 約 ${t.minutes} 分鐘</div></div><span class="tag">有空再做</span></div></div>`).join('')||'<div class="small">今天沒有額外建議，照原本安排就好。</div>')}
+ `;
+}
+function taskRow(t,helper=false,even=false){
+ let dn=completed(S.selected,t.name),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';
+ let sub=helper?t.name:(even?`每日維持${t.preferred?' · 建議'+t.preferred:''}`:`${last} · ${t.minDays}～${t.maxDays}天`);
+ return `<div class="task ${dn?'done':''}"><div class="between"><div><div class="name"><b>${helper?tr(t.name):t.name}</b></div><div class="small">${sub}</div></div><button class="mini" onclick="toggleDone('${t.name}',${even})">${dn?(helper?'✓ Sudah selesai':'✓ 已完成'):(helper?'完成 Selesai':'✓ 完成')}</button></div></div>`
+}
+function helperView(){let sts=['很好','正常','有點累','不舒服'];let w=workload(S.selected);if(S.health==='有點累')w.items=w.items.slice(0,Math.max(1,Math.ceil(w.items.length/2)));if(S.health==='不舒服')w.items=[];let flow=S.flow.map(f=>`<div class="flow row"><div style="width:52px" class="small">${f.time}</div><div style="flex:1"><b>${tr(f.name)}</b><div class="small">${f.name}</div></div></div>`).join('');return `<div class="small">Selamat pagi</div><h1>Hari ini</h1>${card('Kondisi hari ini · 身體狀態',`<div class="statusgrid">${sts.map(x=>`<button class="status ${S.health===x?'active':''}" onclick="S.health='${x}';render()">${x}</button>`).join('')}</div>`)}${card('📝 Catatan · 備註',noteBlock(S.selected,true))}${card('🌞 Alur hari ini · 今日流程',flow)}${card('🧹 Pekerjaan terjadwal · 今日安排',w.items.map(t=>taskRow(t,true)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal hari ini.</div>')}${card('🏠 Rutinitas harian · 每日維持',S.routine.map(t=>taskRow(t,true,true)).join(''))}${card('✨ Saran tambahan Homie · 額外建議',extraSuggestions(S.selected).map(t=>`<div class="task"><div><b>${tr(t.name)}</b><div class="small">${t.name} · Jika ada waktu</div></div></div>`).join('')||'<div class="small">Tidak ada saran tambahan hari ini.</div>')}`}
+function observerView(){return `<div class="small">家庭觀察者</div><h1>${S.selected}</h1>${card('今日模式',`${emo(mode())} ${mode()}`)}${card('📝 今日備註',noteBlock(S.selected,true))}${card('⭐ 今天優先',(S.priorities[S.selected]||[]).map(x=>`<div class="task"><b>${x}</b></div>`).join('')+`<button class="btn secondary full" onclick="pdlg.showModal()">＋ 加入優先</button>`)}${card('今日完成',historyForDate(S.selected))}`}
+function historyForDate(date){let h=S.history.filter(x=>x.date===date);return h.length?h.map(x=>`<div class="task"><b>✓ ${x.name}</b><div class="small">${x.by}</div></div>`).join(''):'<div class="small">沒有完成紀錄。</div>'}
+function calendarView(){let sel=d(S.selected),y=sel.getFullYear(),m=sel.getMonth();let first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());let cells='';for(let i=0;i<42;i++){let x=new Date(start);x.setDate(start.getDate()+i);let s=ds(x),same=x.getMonth()===m;cells+=`<button class="day ${s===S.selected?'active':''} ${same?'':'muted'}" onclick="S.selected='${s}';render()"><div class="num">${x.getDate()}</div><div class="modeTxt">${emo(mode(s))} ${mode(s)}</div></button>`}let recent=S.tasks.map(t=>`<div class="task between"><div><b>${t.name}</b><div class="small">${t.lastDone?'最近完成：'+t.lastDone:'尚無完成紀錄'}</div></div><span class="tag">${t.minDays}～${t.maxDays}天</span></div>`).join('');
+return `<div class="between"><button class="mini" onclick="shiftMonth(-1)">‹</button><h1>${y} 年 ${m+1} 月</h1><button class="mini" onclick="shiftMonth(1)">›</button></div><div class="month-head small">${['日','一','二','三','四','五','六'].map(x=>`<div>${x}</div>`).join('')}</div><div class="calendar">${cells}</div>${card('選取日期',`<b>${S.selected}</b><div style="height:8px"></div><div class="grid2">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<button class="mode ${mode()===x?'active':''}" onclick="S.dateModes[S.selected]='${x}';render()">${emo(x)} ${x}</button>`).join('')}</div><div class="small" style="margin-top:8px">修改後，該日與後續可排工作會依最新狀況重新計算。</div><div style="height:8px"></div><button class="btn full" onclick="S.tab='today';render()">查看這一天</button>`)}${card('最近完成日期',recent)}`}
+function familyView(){
+ if(S.role!=='manager')return `<h1>🏡 家庭</h1>${card('權限','只有管理者可以修改家庭設定。')}`;
+ let mem=S.members.map((x,i)=>`<div class="task"><div class="grid2"><input value="${x.name}" onchange="S.members[${i}].name=this.value;save()"><select onchange="S.members[${i}].role=this.value;save()"><option ${x.role==='管理者'?'selected':''}>管理者</option><option ${x.role==='家庭助手'?'selected':''}>家庭助手</option><option ${x.role==='家庭觀察者'?'selected':''}>家庭觀察者</option></select></div></div>`).join('');
+ let flow=S.flow.map((f,i)=>`<div class="task"><div class="row"><input style="width:88px" value="${f.time}" onchange="S.flow[${i}].time=this.value;save()"><input value="${f.name}" onchange="S.flow[${i}].name=this.value;save()"></div><div style="height:7px"></div><div class="row"><input value="${f.who}" onchange="S.flow[${i}].who=this.value;save()"><button class="mini" onclick="S.flow.splice(${i},1);render()">刪除</button></div></div>`).join('');
+ let routine=S.routine.map((r,i)=>`<div class="task"><div class="row"><input value="${r.name}" onchange="S.routine[${i}].name=this.value;save()"><input type="number" style="width:90px" min="5" value="${r.minutes||10}" onchange="S.routine[${i}].minutes=+this.value;save()"></div><div style="height:7px"></div><div class="row"><input placeholder="時段提示（可空白）" value="${r.preferred||''}" onchange="S.routine[${i}].preferred=this.value;save()"><button class="mini" onclick="S.routine.splice(${i},1);render()">刪除</button></div></div>`).join('');
+ let tasks=S.tasks.map((t,i)=>`<div class="task"><input value="${t.name}" onchange="S.tasks[${i}].name=this.value;save()"><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input type="number" min="1" value="${t.minDays}" onchange="S.tasks[${i}].minDays=+this.value;save()"></div><div><span class="small">最晚</span><input type="number" min="1" value="${t.maxDays}" onchange="S.tasks[${i}].maxDays=+this.value;save()"></div><div><span class="small">分鐘</span><input type="number" min="5" value="${t.minutes}" onchange="S.tasks[${i}].minutes=+this.value;save()"></div></div><div class="small">上次完成：${t.lastDone||'尚無紀錄'}</div></div>`).join('');
+ return `<h1>🏡 家庭</h1>
+ ${card('家庭成員',mem+`<button class="btn secondary full" onclick="S.members.push({name:'新成員',role:'家庭觀察者'});render()">＋ 新增成員</button>`)}
+ ${card('🌞 每日固定流程',flow+`<button class="btn secondary full" onclick="S.flow.push({time:'09:00',name:'新流程',who:'外傭'});render()">＋ 新增固定流程</button>`)}
+ ${card('🏠 每日維持',routine+`<button class="btn secondary full" onclick="S.routine.push({name:'新維持工作',minutes:10,preferred:''});render()">＋ 新增每日維持</button>`)}
+ ${card('🧹 彈性家事與頻率',tasks+`<button class="btn secondary full" onclick="S.tasks.push({name:'新家事',type:'彈性家事',minDays:7,maxDays:14,minutes:60,lastDone:null});render()">＋ 新增家事</button>`)}
+ `;
+}
+function historyView(){let dates=[...new Set(S.history.map(x=>x.date))].sort().reverse();let blocks=dates.length?dates.map(dt=>card(dt,historyForDate(dt),'history')).join(''):'<div class="small">目前沒有歷史完成紀錄。</div>';let last=S.tasks.map(t=>`<div class="task between"><div><b>${t.name}</b><div class="small">${t.lastDone?`上次完成：${t.lastDone}`:'尚無完成紀錄'}</div></div><span class="tag">${t.minDays}～${t.maxDays}天</span></div>`).join('');return `<h1>↺ 完成紀錄</h1>${card('各工作上次完成',last)}<h3>過去每日紀錄</h3>${blocks}`}
+function addNote(){let v=document.getElementById('note').value.trim();if(!v)return;(S.notes[S.selected]??=[]).push({text:v,by:S.role==='manager'?'管理者':S.role==='observer'?'家人':'外傭'});render()}
+function addPriority(){let v=document.getElementById('pin').value.trim();if(!v)return;(S.priorities[S.selected]??=[]);if(!S.priorities[S.selected].includes(v))S.priorities[S.selected].push(v);if(!S.tasks.some(t=>t.name===v))S.tasks.unshift({name:v,type:'彈性家事',minDays:0,maxDays:1,minutes:60,lastDone:null,temp:true});pdlg.close();render()}
+function removePriority(n){S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(x=>x!==n);let i=S.tasks.findIndex(t=>t.name===n&&t.temp);if(i>=0)S.tasks.splice(i,1);render()}
+function toggleDone(name,even=false){S.done[S.selected]??={};let nv=!S.done[S.selected][name];S.done[S.selected][name]=nv;if(nv){S.history.push({date:S.selected,name,by:S.role});if(!even){let t=S.tasks.find(x=>x.name===name);if(t)t.lastDone=S.selected}}else{S.history=S.history.filter(x=>!(x.date===S.selected&&x.name===name));if(!even){let t=S.tasks.find(x=>x.name===name);if(t&&t.lastDone===S.selected){let prev=S.history.filter(x=>x.name===name).map(x=>x.date).sort().pop();t.lastDone=prev||null}}}render()}
+function shiftMonth(n){let x=d(S.selected);x.setMonth(x.getMonth()+n);x.setDate(1);S.selected=ds(x);render()}
+function render(){document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():historyView();save()}
+R.addEventListener('change',e=>{S.role=e.target.value;S.tab='today';render()});document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>{S.tab=x.dataset.tab;render()}));render();
+</script></body></html>
