@@ -1,6 +1,6 @@
 {
   "name": "homie-butler",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.4",
   "private": true,
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1"
