@@ -155,7 +155,7 @@ if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
 if(!S.planned) S.planned={};
 function makeId(prefix){return prefix+'_'+Math.random().toString(36).slice(2,9)}
-function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.tempFlow)S.tempFlow={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')})}
+function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.tempFlow)S.tempFlow={};if(!S.tempRoutine)S.tempRoutine={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')})}
 ensureV11State();
 
 
@@ -308,7 +308,12 @@ function visibleFlow(date=S.selected){
  const temp=(S.tempFlow?.[date]||[]).map(x=>({...x,_temp:true}));
  return [...fixed,...temp].sort((a,b)=>String(a.time||'').localeCompare(String(b.time||'')));
 }
-function visibleRoutine(date=S.selected){const h=hiddenSet('hiddenRoutine',date);return S.routine.filter(x=>!h.has(x._id))}
+function visibleRoutine(date=S.selected){
+ const hidden=hiddenSet('hiddenRoutine',date);
+ const fixed=(S.routine||[]).filter(x=>!hidden.has(x._id)).map(x=>({...x,_temp:false}));
+ const temp=(S.tempRoutine?.[date]||[]).map(x=>({...x,_temp:true}));
+ return [...fixed,...temp];
+}
 function completionKey(kind,item){if(kind==='task')return item.name;return `${kind}:${item._id}`}
 function completionInfo(kind,item,date=S.selected){return ((S.completionDetails||{})[date]||{})[completionKey(kind,item)]||null}
 function isItemDone(kind,item,date=S.selected){return !!((S.done[date]||{})[completionKey(kind,item)])}
@@ -387,7 +392,7 @@ function completionDetailsHtml(kind,item,date=S.selected){
 }
 let completionContext=null;
 function openCompletion(kind,idOrName){
- let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?(S.flow.find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):S.routine.find(x=>x._id===idOrName);if(!item)return;
+ let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?(S.flow.find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):(S.routine.find(x=>x._id===idOrName)||(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===idOrName));if(!item)return;
  const done=isItemDone(kind,item);
  if(done){if(confirm('要取消這項完成紀錄嗎？'))undoCompletion(kind,item);return}
  completionContext={kind,idOrName};document.getElementById('completeTitle').textContent=`完成：${item.name}`;document.getElementById('completeMeta').textContent=`完成者：${currentName()} · ${S.selected}`;document.getElementById('completeNote').value='';document.getElementById('completePhoto').value='';document.getElementById('completePhotoState').textContent='';const img=document.getElementById('completePreview');img.src='';img.style.display='none';completedlg.showModal();
@@ -467,7 +472,7 @@ async function translateHomieText(text){
 async function confirmCompletion(){
  if(!completionContext)return;
  const {kind,idOrName}=completionContext;
- let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?(S.flow.find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):S.routine.find(x=>x._id===idOrName);
+ let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?(S.flow.find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):(S.routine.find(x=>x._id===idOrName)||(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===idOrName));
  if(!item)return;
  const btn=document.getElementById('completeConfirm');
  const note=document.getElementById('completeNote').value.trim();
@@ -598,10 +603,75 @@ function flowRows(helper=false){
  }).join('')||'<div class="small">今天沒有固定流程。</div>';
  return rows+hiddenFlowRows(helper)+tempFlowComposer();
 }
-function routineRows(helper=false){
- return visibleRoutine().map(r=>taskRow(r,helper,true)).join('')||'<div class="small">今天沒有每日維持工作。</div>';
+
+function addTempRoutine(){
+ if(!isManager())return;
+ const name=(document.getElementById('tempRoutineName')?.value||'').trim();
+ const minutes=Number(document.getElementById('tempRoutineMinutes')?.value||10);
+ const preferred=(document.getElementById('tempRoutinePreferred')?.value||'').trim();
+ if(!name){alert('請輸入工作名稱');return}
+ S.tempRoutine??={};S.tempRoutine[S.selected]??=[];
+ S.tempRoutine[S.selected].push({_id:makeId('tr'),name,minutes:Math.max(5,minutes||10),preferred,_temp:true,createdBy:currentName(),createdAt:new Date().toISOString()});
+ render();
+ setTimeout(()=>ensureTranslation(name).then(()=>render()),0);
+}
+function removeTempRoutine(id){
+ const item=(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===id);
+ if(!item)return;
+ if(isItemDone('routine',item)){alert('這個項目已完成，請先取消完成後再移除。');return}
+ S.tempRoutine[S.selected]=(S.tempRoutine[S.selected]||[]).filter(x=>x._id!==id);
+ render();
+}
+function hideTodayRoutineSafe(id){
+ const item=(S.routine||[]).find(x=>x._id===id);
+ if(!item)return;
+ if(isItemDone('routine',item)){alert('這個項目已完成，請先取消完成後再移除。');return}
+ hideTodayItem('routine',id);
+}
+function restoreTodayRoutine(id){
+ S.hiddenRoutine??={};
+ S.hiddenRoutine[S.selected]=(S.hiddenRoutine[S.selected]||[]).filter(x=>x!==id);
+ render();
+}
+function hiddenRoutineRows(helper=false){
+ const ids=S.hiddenRoutine?.[S.selected]||[];
+ const items=(S.routine||[]).filter(x=>ids.includes(x._id));
+ if(!items.length)return '';
+ return `<details class="collapse-box"><summary>${helper?'Rutinitas tersembunyi hari ini｜今天已隱藏的每日維持':'今天已隱藏的每日維持'}（${items.length}）</summary>
+ <div class="collapse-body">${items.map(r=>`<div class="task between"><div><b>${bilingualHtml(r.name)}</b><div class="small">${r.preferred||''}${r.minutes?` · ${r.minutes} 分鐘`:''}</div></div>${isManager()?`<button class="mini" onclick="restoreTodayRoutine('${r._id}')">恢復</button>`:''}</div>`).join('')}</div></details>`;
+}
+function tempRoutineComposer(){
+ if(!isManager())return '';
+ return `<details class="collapse-box"><summary>＋ 新增今天臨時每日維持</summary><div class="collapse-body">
+ <input id="tempRoutineName" placeholder="例如：今天多洗一次奶瓶">
+ <div style="height:8px"></div>
+ <div class="grid2"><div><span class="small">分鐘</span><input id="tempRoutineMinutes" type="number" min="5" value="10"></div>
+ <div><span class="small">時段提示</span><input id="tempRoutinePreferred" placeholder="例如：傍晚"></div></div>
+ <div style="height:8px"></div><button class="btn secondary full" onclick="addTempRoutine()">加入今天每日維持</button>
+ </div></details>`;
 }
 
+function routineRows(helper=false){
+ const rows=visibleRoutine().map(r=>{
+   const dn=isItemDone('routine',r);
+   const hint=r.preferred?`<div class="small">${helper&&r.preferred==='傍晚'?'Sebaiknya sore｜建議傍晚':r.preferred}</div>`:'';
+   const removeBtn=isManager()
+     ? (dn
+       ? `<button class="mini" disabled style="opacity:.45" title="請先取消完成">已完成・不可移除</button>`
+       : (r._temp
+         ? `<button class="mini danger" onclick="removeTempRoutine('${r._id}')">移除</button>`
+         : `<button class="mini danger" onclick="hideTodayRoutineSafe('${r._id}')">今天移除</button>`))
+     : '';
+   return `<div class="task bilingual ${dn?'done':''}">
+     <div class="between">
+       <div><div class="name"><b>${helper?tr(r.name):bilingualHtml(r.name)}</b>${r._temp?` <span class="tag">${helper?'Sementara｜臨時':'臨時'}</span>`:''}</div>
+       ${helper?`<span class="zh">${bilingualHtml(r.name)}</span>`:''}${hint}</div>
+       <div class="task-actions">${removeBtn}<button class="mini" onclick="openCompletion('routine','${r._id}')">${dn?(helper?'✓ Sudah selesai｜已完成':'✓ 已完成'):(helper?'Selesai｜完成':'✓ 完成')}</button></div>
+     </div>${completionDetailsHtml('routine',r)}
+   </div>`;
+ }).join('')||'<div class="small">今天沒有每日維持工作。</div>';
+ return rows+hiddenRoutineRows(helper)+tempRoutineComposer();
+}
 
 function todoLabel(text,translation=''){
  const trn=translation||cachedTranslation(text);
