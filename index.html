@@ -2,10 +2,17 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f7f4ee"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homie">
-<title>Homie Butler v1.1 Beta</title>
+<meta name="theme-color" content="#739887"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homie">
+<title>Homie Butler v1.2 Beta</title>
+<link rel="manifest" href="/site.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
+<link rel="icon" href="/favicon.ico">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+
 <style>
-:root{--bg:#f7f4ee;--card:#fffdfa;--ink:#2f3532;--muted:#77807a;--sage:#739887;--sage2:#dfe9e3;--yellow:#f2d17f;--amber:#dca856;--line:#e8e3da;--radius:22px}
+:root{--bg:#f4f0e8;--card:#fbf8f2;--ink:#31423b;--muted:#748078;--sage:#739887;--sage-dark:#526f61;--sage2:#dce7e0;--sage3:#edf3ef;--yellow:#e8c982;--amber:#cda35c;--line:#dedbd2;--radius:24px}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC",sans-serif}
 button,input,select,textarea{font:inherit}.app{max-width:560px;margin:auto;min-height:100vh;padding:18px 16px 100px}.top,.between,.row{display:flex;align-items:center}.top,.between{justify-content:space-between;gap:10px}.row{gap:9px}.brand{font-weight:800}.small{font-size:13px;color:var(--muted)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:12px 0;box-shadow:0 6px 22px rgba(60,70,64,.05)}.card h3{margin:0 0 9px}.homie{border-left:5px solid var(--sage)}.priority{border-left:5px solid var(--yellow)}.history{border-left:5px solid #b6a98e}
@@ -49,6 +56,43 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 .detail-note{margin-top:7px;padding:8px 10px;background:#f5f1ea;border-radius:10px;font-size:13px}.photo-thumb{display:block;width:100%;max-height:220px;object-fit:cover;border-radius:14px;margin-top:8px;border:1px solid var(--line)}
 .chat-list{display:flex;flex-direction:column;gap:10px}.chat-msg{max-width:88%;padding:11px 13px;border-radius:16px;background:white;border:1px solid var(--line)}.chat-msg.mine{align-self:flex-end;background:var(--sage2)}.chat-msg .translated{margin-top:5px;font-weight:600}.chat-msg .original{font-size:12px;color:var(--muted);margin-top:4px}.chat-compose{display:flex;gap:8px;align-items:flex-end}.chat-compose textarea{flex:1}.photo-state{font-size:12px;color:var(--muted);margin-top:6px}.task-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.reminder{padding:10px 0;border-bottom:1px solid var(--line)}.reminder:last-child{border-bottom:0}
 .tabs{grid-template-columns:repeat(5,1fr)}
+
+body{
+ background:
+ radial-gradient(circle at 20% -10%,rgba(115,152,135,.14),transparent 34%),
+ linear-gradient(180deg,#f7f4ee 0%,#f2eee6 100%);
+}
+.app{max-width:590px;padding:22px 17px 112px}
+.top{padding:7px 2px 15px}.brand{font-family:Georgia,"Times New Roman",serif;font-size:25px;letter-spacing:.2px;color:var(--sage-dark)}
+.card{background:rgba(251,248,242,.94);border-color:rgba(115,152,135,.19);box-shadow:0 10px 30px rgba(58,80,69,.07);padding:18px}
+.card h3{font-family:Georgia,"Times New Roman",serif;color:#3e594d;font-size:19px}
+.btn{background:linear-gradient(180deg,#7f9f90,#6f9281);box-shadow:0 5px 14px rgba(78,112,95,.15)}
+.btn.secondary{background:var(--sage3);border:1px solid #cfddd5;color:#4f705f}
+.mini,.pill,.member-pill{background:#fbf8f2;border-color:#d8ddd8;color:#4d675a}
+.task,.flow,.reminder{border-bottom-color:#e5e2da}
+.done{background:#e3ece7}
+.metric>div{background:#f0eee8;border:1px solid #e5e1d8}
+.tabs{background:rgba(250,247,241,.93);border-top-color:#d9ddd8;box-shadow:0 -8px 28px rgba(50,75,62,.05)}
+.tab.active{background:#dbe7e0;color:#456556}
+input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
+.day{background:#fffdf9}.day.active{background:#dce8e1;border-color:#739887}
+.today-shortcut{background:#f9f6ef;color:#4a6a59;border-color:#ccd9d2}
+.pin-card{background:#fbf8f2;border-color:#d5ddd8}.pin-btn{background:#d9e7df;color:#466657}
+.chat-list{max-height:420px;overflow:auto;padding:2px 3px 4px;scroll-behavior:smooth}
+.chat-msg{background:#fffdf8}.chat-msg.mine{background:#dfeae4}
+.collapse-box{border:1px solid var(--line);border-radius:15px;background:#f7f4ee;margin:8px 0;overflow:hidden}
+.collapse-box summary{padding:11px 13px;cursor:pointer;font-weight:700;color:#587164}
+.collapse-body{padding:0 13px 10px}
+.todo-item{display:grid;grid-template-columns:28px 1fr auto;align-items:start;gap:9px;padding:11px 0;border-bottom:1px solid var(--line)}
+.todo-item:last-child{border-bottom:0}.todo-item.done-todo{opacity:.55}.todo-item.done-todo .todo-text{text-decoration:line-through}
+.todo-check{width:24px;height:24px;accent-color:#739887;margin-top:1px}
+.todo-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.todo-compose{display:flex;gap:8px;align-items:flex-end;margin-top:10px}.todo-compose textarea{min-height:54px}.todo-compose .btn{width:auto;white-space:nowrap}
+.history-day{border:1px solid var(--line);border-radius:16px;background:#faf7f1;margin:8px 0;overflow:hidden}
+.history-day summary{padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between;gap:8px;font-weight:700;color:#506b5d}
+.history-day .history-inside{padding:0 14px 8px}
+.section-note{font-size:12px;color:var(--muted);margin-top:-4px;margin-bottom:8px}
+
 </style></head>
 <body><div id="pinGate" class="pin-gate">
 <div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">家庭雲端同步</div>
@@ -56,7 +100,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.1.4 Beta · 全域雙語版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2 Beta · 日常整理版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="chat">💬<br><span class="small">翻譯</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -73,13 +117,13 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 <input id="sin" placeholder="搜尋既有家事" oninput="renderScheduleMatches()">
 <div id="scheduleMatches" class="search-results"></div>
 </div></dialog>
-<dialog id="pdlg"><div class="db"><div class="between"><h3>加入今天優先</h3><button class="mini" onclick="pdlg.close()">關閉</button></div><div class="small">輸入關鍵字後，從已設定的家事中選擇。</div><div style="height:8px"></div><input id="pin" placeholder="搜尋家事，例如：客廳、排水孔" oninput="renderPriorityMatches()"><div id="priorityMatches" class="search-results"></div><div style="height:8px"></div><button class="btn secondary full" onclick="prepareNewTaskFromPriority()">找不到？新增到家事庫</button></div></dialog>
+
 
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
 <dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer">📷 加入照片（選填）<input id="completePhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
 const ID={'洗衣服':'Mencuci pakaian','晾衣服':'Menjemur pakaian','收衣服':'Merapikan pakaian','收垃圾':'Mengumpulkan sampah','清貓砂':'Membersihkan kotak pasir kucing','倒除濕機水':'Mengosongkan air dehumidifier','洗貓碗':'Mencuci mangkuk kucing','洗奶瓶與擠乳器':'Mencuci botol dan pompa ASI','餐後收拾':'Merapikan setelah makan','主臥完整清潔':'Membersihkan kamar tidur utama','妹妹房完整清潔':'Membersihkan kamar anak perempuan','弟弟房完整清潔':'Membersihkan kamar anak laki-laki','客廳完整清潔':'Membersihkan ruang tamu','餐廳完整清潔':'Membersihkan ruang makan','廚房完整清潔':'Membersihkan dapur','後陽台完整清潔':'Membersihkan balkon belakang','客廳廁所完整清潔':'Membersihkan toilet ruang tamu','工作室完整清潔':'Membersihkan ruang kerja','排水孔清理':'Membersihkan saluran pembuangan','洗衣機清潔':'Membersihkan mesin cuci','溫奶':'Menghangatkan ASI','早餐／喝奶':'Sarapan / minum susu','送孩子上學':'Mengantar anak ke sekolah','接孩子':'Menjemput anak','晚餐':'Makan malam','睡前奶':'Susu sebelum tidur','很好':'Baik sekali','正常':'Baik','有點累':'Agak lelah','不舒服':'Kurang sehat','家庭日':'Hari keluarga','家事日':'Hari pekerjaan rumah','婆婆家':'Rumah ibu mertua','照護日':'Hari perawatan','外傭休假':'Hari libur','新流程':'Alur baru','新維持工作':'Rutinitas baru','新家事':'Pekerjaan baru'};
-const defaults={role:'manager',tab:'today',selected:localYmd(new Date()),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],currentMember:'蓉',notes:{},priorities:{},done:{},history:[],chat:[],completionDetails:{},hiddenFlow:{},hiddenRoutine:{},flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
+const defaults={role:'manager',tab:'today',selected:localYmd(new Date()),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],currentMember:'蓉',notes:{},priorities:{},done:{},history:[],chat:[],todos:[],completionDetails:{},hiddenFlow:{},hiddenRoutine:{},flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
 tasks:[
 {name:'主臥完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:90,lastDone:null},
 {name:'妹妹房完整清潔',type:'彈性家事',minDays:7,maxDays:14,minutes:75,lastDone:null},
@@ -107,11 +151,11 @@ if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
 if(!S.planned) S.planned={};
 function makeId(prefix){return prefix+'_'+Math.random().toString(36).slice(2,9)}
-function ensureV11State(){if(!S.chat)S.chat=[];if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')})}
+function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')})}
 ensureV11State();
 
 
-const V=document.getElementById('view'),R=null,pdlg=document.getElementById('pdlg'),sdlg=document.getElementById('sdlg'),hadddlg=document.getElementById('hadddlg'),completedlg=document.getElementById('completedlg');syncRoleSelect();
+const V=document.getElementById('view'),R=null,sdlg=document.getElementById('sdlg'),hadddlg=document.getElementById('hadddlg'),completedlg=document.getElementById('completedlg');syncRoleSelect();
 function localYmd(x){
  const y=x.getFullYear(),m=String(x.getMonth()+1).padStart(2,'0'),d=String(x.getDate()).padStart(2,'0');
  return `${y}-${m}-${d}`;
@@ -155,7 +199,7 @@ function mode(date=S.selected){
 function capacityMinutes(date=S.selected){return S.dateCapacity[date]===undefined?240:Number(S.dateCapacity[date])}
 function setCapacityHours(h){S.dateCapacity[S.selected]=Math.max(0,Number(h)||0)*60;invalidatePlan();render()}
 function manualAdded(date=S.selected){return S.manualAdd[date]||[]}
-function priorityNames(date=S.selected){return (S.priorities[date]||[]).map(p=>typeof p==='string'?p:p.name)}
+function priorityNames(date=S.selected){return []}
 function manualRemoved(date=S.selected){return S.manualRemove[date]||[]}function emo(m){return {'家事日':'🧹','家庭日':'👨‍👩‍👧','婆婆家':'👵','照護日':'👶','外傭休假':'🌴'}[m]||'🏡'}function card(t,b,c=''){return `<section class="card ${c}"><h3>${t}</h3>${b}</section>`}function tr(x){return ID[x]||x}
 function recurrenceStatus(t,date=today()){
  const n=daysSince(t.lastDone,date);
@@ -187,7 +231,7 @@ function duePool(date){
 }
 function buildPlan(date){
  let pool=duePool(date),budget=capacityMinutes(date),out=[],used=0;
- let forced=new Set([...priorityNames(date),...manualAdded(date)]);
+ let forced=new Set([...manualAdded(date)]);
  for(const t of pool){
    if(forced.has(t.name)){out.push(t.name);used+=t.minutes||0;continue}
    if(used+(t.minutes||0)<=budget){out.push(t.name);used+=t.minutes||0}
@@ -457,31 +501,72 @@ function routineRows(helper=false){
  return visibleRoutine().map(r=>taskRow(r,helper,true)).join('')||'<div class="small">今天沒有每日維持工作。</div>';
 }
 
+
+function todoLabel(text,translation=''){
+ const trn=translation||cachedTranslation(text);
+ if(!trn){
+   setTimeout(async()=>{const x=await ensureTranslation(text);if(x){const t=S.todos.find(z=>z.text===text&&!z.translation);if(t){t.translation=x;save()}render()}},0);
+ }
+ if(isHelper())return `<div class="todo-text"><b>${trn||text}</b>${trn?`<div class="small">${text}</div>`:''}</div>`;
+ return `<div class="todo-text"><b>${text}</b>${trn?`<div class="small">${trn}</div>`:''}</div>`;
+}
+function todoBlock(){
+ S.todos??=[];
+ const open=S.todos.filter(x=>!x.done).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+ const done=S.todos.filter(x=>x.done).sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||''));
+ const rows=open.map(t=>`<div class="todo-item">
+   <input class="todo-check" type="checkbox" onchange="toggleTodo('${t.id}',true)">
+   <div>${todoLabel(t.text,t.translation)}<div class="todo-meta">${t.by||'家庭'} · ${String(t.createdAt||'').slice(0,10)}</div></div>
+   <button class="mini" onclick="deleteTodo('${t.id}')">刪除</button>
+ </div>`).join('')||`<div class="small">${isHelper()?'Tidak ada daftar yang harus dilakukan.｜目前沒有待辦。':'目前沒有待辦。'}</div>`;
+ const completed=done.length?`<details class="collapse-box"><summary>已完成 ${done.length} 項</summary><div class="collapse-body">${done.slice(0,30).map(t=>`<div class="todo-item done-todo">
+   <input class="todo-check" type="checkbox" checked onchange="toggleTodo('${t.id}',false)">
+   <div>${todoLabel(t.text,t.translation)}<div class="todo-meta">${t.doneBy||''}${t.doneAt?' · '+String(t.doneAt).slice(0,10):''}</div></div>
+   <button class="mini" onclick="deleteTodo('${t.id}')">刪除</button>
+ </div>`).join('')}</div></details>`:'';
+ return `${rows}${completed}<div class="todo-compose"><textarea id="todoInput" rows="2" placeholder="${isHelper()?'Contoh: Tisu hampir habis｜例如：衛生紙快沒了':'例如：衛生紙快沒了、洗衣精要買'}"></textarea><button class="btn" onclick="addTodo()">＋ 新增</button></div>`;
+}
+async function addTodo(){
+ const el=document.getElementById('todoInput');
+ const text=(el?.value||'').trim();
+ if(!text)return;
+ const item={id:makeId('todo'),text,translation:'',by:currentName(),createdAt:new Date().toISOString(),done:false};
+ S.todos??=[];S.todos.push(item);if(el)el.value='';render();
+ try{item.translation=await translateHomieText(text);save();render()}catch(e){console.error('todo translate',e);save()}
+}
+function toggleTodo(id,done){
+ const t=(S.todos||[]).find(x=>x.id===id);if(!t)return;
+ t.done=!!done;t.doneAt=done?new Date().toISOString():null;t.doneBy=done?currentName():null;render();
+}
+function deleteTodo(id){
+ S.todos=(S.todos||[]).filter(x=>x.id!==id);render();
+}
+
 function todayView(){
  if(isHelper())return helperView();
  if(isObserver())return observerView();
 
  const w=workload(S.selected);
  const tasks=w.items.map(t=>managerScheduledRow(t)).join('')||'<div class="small">這一天目前沒有安排彈性家事。</div>';
- const pri=(S.priorities[S.selected]||[]).map(p=>typeof p==='string'?{name:p,by:'未記錄'}:p)
-   .map(p=>`<div class="task between"><div><b>${bilingualHtml(p.name)}</b><div class="small">由 ${p.by} 設為優先</div></div><button class="mini" onclick="removePriority('${p.name.replace(/'/g,"\\'")}')">取消</button></div>`)
-   .join('')||'<div class="small">沒有今天優先。</div>';
 
  return `<div class="between"><div><div class="small">${S.selected}</div><h1>${emo(mode())} ${mode()}</h1></div><button class="pill" onclick="S.tab='calendar';render()">看日曆</button></div>
  ${card('🏡 Homie 本日建議',`Homie 預設每天安排 <b>4 小時</b> 彈性家事；妳可以依當天情況自由調整。每日維持不計入這個額度。`,'homie')}
  ${card('⏱ 今日預計工作量',`<div class="capacity"><b>今天最多排</b><input type="number" step="0.5" min="0" value="${(w.cap/60).toFixed(1)}" onchange="setCapacityHours(this.value)"><span>小時</span></div><div class="grid3 metric" style="margin-top:10px"><div><b>${(w.mins/60).toFixed(1)}h</b><span class="small">目前安排</span></div><div><b>${(w.left/60).toFixed(1)}h</b><span class="small">剩餘</span></div><div><b>${(w.cap/60).toFixed(1)}h</b><span class="small">當日上限</span></div></div>`)}
  ${card('📌 今日提醒',reminderBlock(S.selected,true))}
+ ${card('📝 家庭待辦／採買提醒',todoBlock())}
  ${card('🌞 今日流程',flowRows(false))}
- ${card('⭐ 今天優先',pri+`<div style="height:8px"></div><button class="btn secondary full" onclick="pdlg.showModal();setTimeout(renderPriorityMatches,0)">＋ 新增今天優先</button>`,'priority')}
  ${card('🧹 今日安排',tasks+`<div style="height:8px"></div><button class="btn secondary full" onclick="openSchedulePicker()">＋ 管理者新增／調整今日工作</button>`)}
  ${card('🏠 每日維持',routineRows(false))}
  ${card('✨ Homie 額外建議',extraSuggestions(S.selected).map(t=>`<div class="task"><div class="between"><div><b>${bilingualHtml(t.name)}</b><div class="small">${t.lastDone?'上次：'+t.lastDone:'尚無完成紀錄'} · 約 ${t.minutes} 分鐘</div></div><span class="tag">有空再做</span></div></div>`).join('')||'<div class="small">今天沒有額外建議，照原本安排就好。</div>')}`;
 }
 
 function chatView(){
- const msgs=S.chat||[];
- const rows=msgs.map(m=>`<div class="chat-msg ${m.by===currentName()?'mine':''}"><b>${m.by}</b><div class="translated">${m.translation||'翻譯中／Terjemahan...'}</div><div class="original">原文：${m.text}</div></div>`).join('')||'<div class="small">還沒有對話。中文與印尼文都可以直接輸入。</div>';
- return `<h1>💬 即時翻譯</h1>${card('中 ⇄ 印尼 對話',`<div class="chat-list">${rows}</div><div style="height:12px"></div><div class="chat-compose"><textarea id="chatInput" rows="2" placeholder="直接輸入中文或印尼文"></textarea><button class="btn" onclick="sendChat()">送出</button></div><div class="small" style="margin-top:8px">原文會保留，Homie 會自動翻成另一種語言。</div>`)}`;
+ const msgs=S.chat||[], recent=msgs.slice(-10), older=msgs.slice(0,-10);
+ const row=m=>`<div class="chat-msg ${m.by===currentName()?'mine':''}"><b>${m.by}</b><div class="translated">${m.translation||'翻譯中／Terjemahan...'}</div><div class="original">原文：${m.text}</div></div>`;
+ const olderHtml=older.length?`<details class="collapse-box"><summary>查看較早訊息（${older.length}）</summary><div class="collapse-body chat-list">${older.map(row).join('')}</div></details>`:'';
+ const rows=recent.map(row).join('')||'<div class="small">還沒有對話。中文與印尼文都可以直接輸入。</div>';
+ setTimeout(()=>{const box=document.getElementById('chatList');if(box)box.scrollTop=box.scrollHeight},0);
+ return `<h1>💬 即時翻譯</h1>${card('中 ⇄ 印尼 對話',`${olderHtml}<div id="chatList" class="chat-list">${rows}</div><div style="height:12px"></div><div class="chat-compose"><textarea id="chatInput" rows="2" placeholder="直接輸入中文或印尼文"></textarea><button class="btn" onclick="sendChat()">送出</button></div><div class="small" style="margin-top:8px">預設只顯示最新 10 則；較早訊息可展開查看。</div>`)}`;
 }
 
 async function sendChat(){
@@ -528,6 +613,7 @@ function warmBilingualCache(){
  (S.tasks||[]).forEach(x=>x?.name&&texts.push(x.name));
  (S.flow||[]).forEach(x=>x?.name&&texts.push(x.name));
  (S.routine||[]).forEach(x=>x?.name&&texts.push(x.name));
+ (S.todos||[]).forEach(x=>x?.text&&texts.push(x.text));
  Object.values(S.completionDetails||{}).forEach(day=>Object.values(day||{}).forEach(x=>x?.note&&texts.push(x.note)));
  [...new Set(texts)].slice(0,80).forEach(x=>{if(!cachedTranslation(x))ensureTranslation(x)});
 }
@@ -541,11 +627,18 @@ function openHelperAdd(){hadddlg.showModal();setTimeout(renderHelperAddMatches,0
 function renderHelperAddMatches(){const box=document.getElementById('helperAddMatches'),input=document.getElementById('haddin');if(!box||!input)return;const q=input.value.trim().toLowerCase(),already=new Set(candidates(S.selected).map(t=>t.name));let matches=S.tasks.filter(t=>(!q||t.name.toLowerCase().includes(q))&&!already.has(t.name)).slice(0,12);box.innerHTML=matches.length?matches.map(t=>`<button class="search-item" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')"><b>${tr(t.name)}</b><div class="small">${bilingualHtml(t.name)} · ± ${t.minutes} menit｜分鐘</div></button>`).join(''):'<div class="small" style="padding:12px">Tidak ada pilihan lain.｜沒有其他可選工作。</div>'}
 function helperAddToToday(name){(S.manualAdd[S.selected]??=[]);if(!S.manualAdd[S.selected].includes(name))S.manualAdd[S.selected].push(name);S.manualRemove[S.selected]=(S.manualRemove[S.selected]||[]).filter(x=>x!==name);invalidatePlan();hadddlg.close();render()}
 function taskRow(t,helper=false,even=false){const kind=even?'routine':'task',dn=isItemDone(kind,t),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';if(helper){let hint=even&&t.preferred?`<div class="small">${t.preferred==='傍晚'?'Sebaiknya sore｜建議傍晚':t.preferred}</div>`:'';return `<div class="task bilingual ${dn?'done':''}"><div class="between"><div><div class="name"><b>${tr(t.name)}</b></div><span class="zh">${bilingualHtml(t.name)}</span>${hint}</div><div class="task-actions"><button class="mini" onclick="openCompletion('${kind}','${even?t._id:t.name.replace(/'/g,"\\'")}')">${dn?'✓ Sudah selesai｜已完成':'Selesai｜完成'}</button></div></div>${completionDetailsHtml(kind,t)}</div>`}let sub=even?(t.preferred?`建議${t.preferred}`:''):`${last} · ${t.minDays}～${t.maxDays}天`;return `<div class="task ${dn?'done':''}"><div class="between"><div><div class="name"><b>${bilingualHtml(t.name)}</b></div>${sub?`<div class="small">${sub}</div>`:''}</div><div class="task-actions">${even&&isManager()?`<button class="mini danger" onclick="hideTodayItem('routine','${t._id}')">今天移除</button>`:''}<button class="mini" onclick="openCompletion('${kind}','${even?t._id:t.name.replace(/'/g,"\\'")}')">${dn?'✓ 已完成':'✓ 完成'}</button></div></div>${completionDetailsHtml(kind,t)}</div>`}
-function helperView(){let sts=[['很好','Baik sekali'],['正常','Baik'],['有點累','Agak lelah'],['不舒服','Kurang sehat']],base=workload(S.selected),forced=new Set([...priorityNames(S.selected),...manualAdded(S.selected)]),completedItems=base.items.filter(t=>isItemDone('task',t)),forcedItems=base.items.filter(t=>forced.has(t.name)&&!isItemDone('task',t)),normalItems=base.items.filter(t=>!forced.has(t.name)&&!isItemDone('task',t)),scheduled=[...completedItems,...forcedItems,...normalItems],moved=[];if(S.health==='有點累'){const keepCount=Math.max(0,Math.ceil(normalItems.length/2));scheduled=[...completedItems,...forcedItems,...normalItems.slice(0,keepCount)];moved=normalItems.slice(keepCount)}if(S.health==='不舒服'){scheduled=[...completedItems,...forcedItems];moved=normalItems}let extraBase=extraSuggestions(S.selected),seen=new Set(scheduled.map(t=>t.name)),suggestions=[...moved,...extraBase].filter((t,i,a)=>!seen.has(t.name)&&a.findIndex(x=>x.name===t.name)===i),sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div><b>${tr(t.name)}</b><span class="zh">${bilingualHtml(t.name)}</span><div class="small">${moved.some(x=>x.name===t.name)?'Dipindahkan karena kondisi hari ini｜因今天身體狀況移到建議':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')">＋ Kerjakan｜加入</button></div></div>`).join('')||'<div class="small">Tidak ada saran tambahan hari ini.｜今天沒有額外建議。</div>';return `<div class="small">${currentName()} · Selamat pagi｜早安</div><h1>Hari ini｜今天</h1>${card('Kondisi hari ini｜身體狀態',`<div class="statusgrid">${sts.map(([zh,id])=>`<button class="status ${S.health===zh?'active':''}" onclick="S.health='${zh}';render()">${id}<br><span class="small">${zh}</span></button>`).join('')}</div>`)}${card('📌 Pengingat hari ini｜今日提醒',reminderBlock(S.selected,false))}${card('🌞 Alur hari ini｜今日流程',flowRows(true))}${card('🧹 Pekerjaan terjadwal｜今日安排',scheduled.map(t=>taskRow(t,true,false)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal.｜今天沒有安排工作。</div>')}${card('🏠 Rutinitas harian｜每日維持',routineRows(true))}${card('✨ Saran tambahan Homie｜Homie 額外建議',sug+`<div style="height:8px"></div><button class="btn secondary full" onclick="openHelperAdd()">＋ Tambah pekerjaan sendiri｜自己增加打掃工作</button>`)}`}
-function observerView(){let w=workload(S.selected),scheduled=w.items.map(t=>taskRow(t,false,false)).join('')||'<div class="small">今天沒有安排彈性家事。</div>',pri=(S.priorities[S.selected]||[]).map(p=>typeof p==='string'?{name:p,by:'未記錄'}:p).map(p=>`<div class="task"><b>${p.name}</b><div class="small">${p.by} 設為優先</div></div>`).join('')||'<div class="small">目前沒有。</div>';return `<div class="small">${currentName()} · 家庭成員</div><h1>${S.selected}</h1>${card('今日模式',`${emo(mode())} ${mode()}`)}${card('📌 今日提醒',reminderBlock(S.selected,false))}${card('🌞 今日流程',flowRows(false))}${card('⭐ 今天優先',pri+`<button class="btn secondary full" onclick="pdlg.showModal();setTimeout(renderPriorityMatches,0)">＋ 加入今天優先</button>`)}${card('🧹 今日安排',scheduled)}${card('🏠 每日維持',routineRows(false))}${card('今日完成紀錄',historyForDate(S.selected))}`}
-function historyForDate(date){
- let h=S.history.filter(x=>x.date===date&&S.tasks.some(t=>t.name===x.name));
- return h.length?h.map(x=>`<div class="task"><b>✓ ${bilingualHtml(x.name)}</b><div class="small">${x.by}</div>${x.note?`<div class="detail-note">${isHelper()?(x.noteTranslation||cachedTranslation(x.note)||x.note):x.note}${(x.noteTranslation||cachedTranslation(x.note))?`<div class="small">${isHelper()?x.note:(x.noteTranslation||cachedTranslation(x.note))}</div>`:''}</div>`:''}${x.photoPath?securePhotoHtml(x.photoPath):(x.photoUrl?`<img class="photo-thumb" src="${escAttr(x.photoUrl)}">`:'')}</div>`).join(''):'<div class="small">沒有彈性家事完成紀錄。</div>';
+function helperView(){let sts=[['很好','Baik sekali'],['正常','Baik'],['有點累','Agak lelah'],['不舒服','Kurang sehat']],base=workload(S.selected),forced=new Set([...manualAdded(S.selected)]),completedItems=base.items.filter(t=>isItemDone('task',t)),forcedItems=base.items.filter(t=>forced.has(t.name)&&!isItemDone('task',t)),normalItems=base.items.filter(t=>!forced.has(t.name)&&!isItemDone('task',t)),scheduled=[...completedItems,...forcedItems,...normalItems],moved=[];if(S.health==='有點累'){const keepCount=Math.max(0,Math.ceil(normalItems.length/2));scheduled=[...completedItems,...forcedItems,...normalItems.slice(0,keepCount)];moved=normalItems.slice(keepCount)}if(S.health==='不舒服'){scheduled=[...completedItems,...forcedItems];moved=normalItems}let extraBase=extraSuggestions(S.selected),seen=new Set(scheduled.map(t=>t.name)),suggestions=[...moved,...extraBase].filter((t,i,a)=>!seen.has(t.name)&&a.findIndex(x=>x.name===t.name)===i),sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div><b>${tr(t.name)}</b><span class="zh">${bilingualHtml(t.name)}</span><div class="small">${moved.some(x=>x.name===t.name)?'Dipindahkan karena kondisi hari ini｜因今天身體狀況移到建議':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')">＋ Kerjakan｜加入</button></div></div>`).join('')||'<div class="small">Tidak ada saran tambahan hari ini.｜今天沒有額外建議。</div>';return `<div class="small">${currentName()} · Selamat pagi｜早安</div><h1>Hari ini｜今天</h1>${card('Kondisi hari ini｜身體狀態',`<div class="statusgrid">${sts.map(([zh,id])=>`<button class="status ${S.health===zh?'active':''}" onclick="S.health='${zh}';render()">${id}<br><span class="small">${zh}</span></button>`).join('')}</div>`)}${card('📌 Pengingat hari ini｜今日提醒',reminderBlock(S.selected,false))}${card('📝 Daftar keluarga｜家庭待辦',todoBlock())}${card('🌞 Alur hari ini｜今日流程',flowRows(true))}${card('🧹 Pekerjaan terjadwal｜今日安排',scheduled.map(t=>taskRow(t,true,false)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal.｜今天沒有安排工作。</div>')}${card('🏠 Rutinitas harian｜每日維持',routineRows(true))}${card('✨ Saran tambahan Homie｜Homie 額外建議',sug+`<div style="height:8px"></div><button class="btn secondary full" onclick="openHelperAdd()">＋ Tambah pekerjaan sendiri｜自己增加打掃工作</button>`)}`}
+function observerView(){
+ let w=workload(S.selected);
+ let scheduled=w.items.map(t=>taskRow(t,false,false)).join('')||'<div class="small">今天沒有安排彈性家事。</div>';
+ return `<div class="small">${currentName()} · 家庭成員</div><h1>${S.selected}</h1>
+ ${card('今日模式',`${emo(mode())} ${mode()}`)}
+ ${card('📌 今日提醒',reminderBlock(S.selected,false))}
+ ${card('📝 家庭待辦／採買提醒',todoBlock())}
+ ${card('🌞 今日流程',flowRows(false))}
+ ${card('🧹 今日安排',scheduled)}
+ ${card('🏠 每日維持',routineRows(false))}
+ ${card('今日完成紀錄',historyForDate(S.selected))}`;
 }
 function familyView(){
  if(!isManager())return `<h1>🏡 家庭</h1>${card('權限','只有管理者可以修改家庭設定。')}`;
@@ -585,17 +678,19 @@ function deleteFlexibleTask(i){
  render(); warmBilingualCache();
 }
 function addFlexibleTaskFromForm(){const name=(document.getElementById('newTaskName')?.value||'').trim();if(!name)return;if(S.tasks.some(t=>t.name===name)){alert('這個家事已經存在');return;}const min=Number(document.getElementById('newTaskMin')?.value||7),max=Number(document.getElementById('newTaskMax')?.value||14),mins=Number(document.getElementById('newTaskMinutes')?.value||60);S.tasks.push({name,type:'彈性家事',minDays:min,maxDays:Math.max(max,min),minutes:mins,lastDone:null});S.pendingNewTaskName='';render()}
-function historyView(){const routineNames=new Set((S.routine||[]).map(r=>r.name));let dates=[...new Set(S.history.filter(x=>!routineNames.has(x.name)&&S.tasks.some(t=>t.name===x.name)).map(x=>x.date))].sort().reverse();let blocks=dates.length?dates.map(dt=>card(dt,historyForDate(dt),'history')).join(''):'<div class="small">目前沒有歷史完成紀錄。</div>';let last=S.tasks.map(t=>`<div class="task between"><div><b>${bilingualHtml(t.name)}</b><div class="small ${recurrenceStatus(t).cls}">${t.lastDone?`上次完成：${t.lastDone} · ${recurrenceStatus(t).label}`:recurrenceStatus(t).label}</div></div><span class="tag">${t.minDays}～${t.maxDays}天</span></div>`).join('');return `<h1>↺ 完成紀錄</h1>${card('各工作上次完成',last)}<h3>過去每日紀錄</h3>${blocks}`}
-async function addNote(){
- if(!isManager())return;
- const v=document.getElementById('note').value.trim();
- if(!v)return;
- let translation='';
- try{translation=await translateHomieText(v)}catch(e){console.error('reminder translate',e)}
- (S.notes[S.selected]??=[]).push({text:v,translation,by:currentName(),lang:'zh'});
- render();
+function historyView(){
+ const routineNames=new Set((S.routine||[]).map(r=>r.name));
+ let dates=[...new Set(S.history.filter(x=>!routineNames.has(x.name)&&S.tasks.some(t=>t.name===x.name)).map(x=>x.date))].sort().reverse();
+ const dayBlock=dt=>{
+   const count=S.history.filter(x=>x.date===dt&&S.tasks.some(t=>t.name===x.name)).length;
+   return `<details class="history-day"><summary><span>${dt}</span><span>${count} 項</span></summary><div class="history-inside">${historyForDate(dt)}</div></details>`;
+ };
+ const recent=dates.slice(0,7).map(dayBlock).join('')||'<div class="small">目前沒有歷史完成紀錄。</div>';
+ const older=dates.length>7?`<details class="collapse-box"><summary>查看更多較早紀錄（${dates.length-7} 天）</summary><div class="collapse-body">${dates.slice(7).map(dayBlock).join('')}</div></details>`:'';
+ let last=S.tasks.map(t=>`<div class="task between"><div><b>${bilingualHtml(t.name)}</b><div class="small ${recurrenceStatus(t).cls}">${t.lastDone?`上次完成：${t.lastDone} · ${recurrenceStatus(t).label}`:recurrenceStatus(t).label}</div></div><span class="tag">${t.minDays}～${t.maxDays}天</span></div>`).join('');
+ return `<h1>↺ 完成紀錄</h1>${card('各工作上次完成',last)}<h3>過去每日紀錄</h3><div class="section-note">預設顯示最近 7 天，較早紀錄收合保存。</div>${recent}${older}`;
 }
-function prepareNewTaskFromPriority(){const q=(document.getElementById('pin')?.value||'').trim();S.tab='family';S.pendingNewTaskName=q||'新家事';pdlg.close();render();setTimeout(()=>{const el=document.getElementById('newTaskName');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus();}},50)}
+function prepareNewTaskFromPriority(){const q=(document.getElementById('pin')?.value||'').trim();S.tab='family';S.pendingNewTaskName=q||'新家事';render();setTimeout(()=>{const el=document.getElementById('newTaskName');if(el){el.scrollIntoView({behavior:'smooth',block:'center'});el.focus();}},50)}
 function addPriority(){const q=(document.getElementById('pin')?.value||'').trim();const match=S.tasks.find(t=>t.name===q)||S.tasks.find(t=>t.name.includes(q));if(match)selectPriorityTask(match.name)}
 function removePriority(n){
  S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(p=>(typeof p==='string'?p:p.name)!==n);
