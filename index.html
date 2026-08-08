@@ -56,7 +56,7 @@ input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);borde
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.1.1 Beta · 家庭協作版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div id="memberPill" class="member-pill">尚未綁定</div></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.1.2 Beta · 家庭協作版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div id="memberPill" class="member-pill">尚未綁定</div></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="chat">💬<br><span class="small">翻譯</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -419,9 +419,33 @@ function removePriority(n){
  invalidatePlan();render();
 }
 function shiftMonth(n){let x=d(S.selected);x.setMonth(x.getMonth()+n);x.setDate(1);S.selected=ds(x);render()}
+
+let pendingRoleSwitch=null;
+function requestRoleSwitch(nextRole){
+ if(!nextRole||nextRole===S.currentRole)return;
+ pendingRoleSwitch=nextRole;
+ const m=(S.members||[]).find(x=>x.id===nextRole||x.name===nextRole);
+ document.getElementById('roleSwitchTarget').textContent=`要切換成：${m?.name||nextRole}`;
+ document.getElementById('roleSwitchPin').value='';
+ roleSwitchDlg.showModal();
+}
+function confirmRoleSwitch(){
+ const pin=document.getElementById('roleSwitchPin').value.trim();
+ if(!pin){alert('請輸入家庭 PIN');return}
+ if(pin!==storedFamilyPin()){alert('PIN 不正確');return}
+ S.currentRole=pendingRoleSwitch;
+ localStorage.setItem('homie_last_role',String(pendingRoleSwitch));
+ pendingRoleSwitch=null; roleSwitchDlg.close(); render();
+}
+
 function render(){syncRoleSelect();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():S.tab==='chat'?chatView():historyView();const ts=document.getElementById('todayShortcut');if(ts)ts.style.display=(S.tab==='today'&&S.selected===today())?'none':'block';save();setTimeout(hydratePrivatePhotos,0)}
 const pinInputEl=document.getElementById('pinInput'),pinLoginBtnEl=document.getElementById('pinLoginBtn');
 if(pinInputEl){pinInputEl.addEventListener('input',()=>{pinInputEl.value=pinInputEl.value.replace(/\D/g,'').slice(0,6);const e=document.getElementById('pinError');if(e)e.textContent=''});pinInputEl.addEventListener('keydown',e=>{if(e.key==='Enter')submitFamilyPin()})}
 if(pinLoginBtnEl)pinLoginBtnEl.addEventListener('click',submitFamilyPin);
 document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>{S.tab=x.dataset.tab;render()}));render();setTimeout(initCloud,150);
-</script></body></html>
+</script><dialog id="roleSwitchDlg"><div class="modal-card">
+<h3>切換使用者</h3><div class="small" id="roleSwitchTarget"></div>
+<input id="roleSwitchPin" type="password" inputmode="numeric" placeholder="輸入家庭 PIN 驗證">
+<div class="row" style="margin-top:12px"><button class="btn" onclick="roleSwitchDlg.close()">取消</button>
+<button class="btn primary" onclick="confirmRoleSwitch()">確認切換</button></div></div></dialog>
+</body></html>
