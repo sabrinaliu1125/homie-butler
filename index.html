@@ -120,7 +120,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 
 
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
-<dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer">📷 加入照片（選填）<input id="completePhoto" type="file" accept="image/*" capture="environment" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
+<dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer">📷 加入照片（選填）<input id="completePhoto" type="file" accept="image/*" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
 const ID={'洗衣服':'Mencuci pakaian','晾衣服':'Menjemur pakaian','收衣服':'Merapikan pakaian','收垃圾':'Mengumpulkan sampah','清貓砂':'Membersihkan kotak pasir kucing','倒除濕機水':'Mengosongkan air dehumidifier','洗貓碗':'Mencuci mangkuk kucing','洗奶瓶與擠乳器':'Mencuci botol dan pompa ASI','餐後收拾':'Merapikan setelah makan','主臥完整清潔':'Membersihkan kamar tidur utama','妹妹房完整清潔':'Membersihkan kamar anak perempuan','弟弟房完整清潔':'Membersihkan kamar anak laki-laki','客廳完整清潔':'Membersihkan ruang tamu','餐廳完整清潔':'Membersihkan ruang makan','廚房完整清潔':'Membersihkan dapur','後陽台完整清潔':'Membersihkan balkon belakang','客廳廁所完整清潔':'Membersihkan toilet ruang tamu','工作室完整清潔':'Membersihkan ruang kerja','排水孔清理':'Membersihkan saluran pembuangan','洗衣機清潔':'Membersihkan mesin cuci','溫奶':'Menghangatkan ASI','早餐／喝奶':'Sarapan / minum susu','送孩子上學':'Mengantar anak ke sekolah','接孩子':'Menjemput anak','晚餐':'Makan malam','睡前奶':'Susu sebelum tidur','很好':'Baik sekali','正常':'Baik','有點累':'Agak lelah','不舒服':'Kurang sehat','家庭日':'Hari keluarga','家事日':'Hari pekerjaan rumah','婆婆家':'Rumah ibu mertua','照護日':'Hari perawatan','外傭休假':'Hari libur','新流程':'Alur baru','新維持工作':'Rutinitas baru','新家事':'Pekerjaan baru'};
 const defaults={role:'manager',tab:'today',selected:localYmd(new Date()),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],currentMember:'蓉',notes:{},priorities:{},done:{},history:[],chat:[],todos:[],completionDetails:{},hiddenFlow:{},hiddenRoutine:{},flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
@@ -331,7 +331,7 @@ async function hydratePrivatePhotos(){
       const b=await r.blob();
       const u=URL.createObjectURL(b);
       privatePhotoCache.set(path,u);
-      img.src=u;img.style.display='block';
+      img.src=u;img.style.display='block';const state=img.previousElementSibling;if(state&&state.classList.contains('photo-state'))state.textContent='🔒 完成照片';
     }catch(e){
       console.error('Homie private photo:',e);
       const state=img.previousElementSibling;
@@ -553,12 +553,12 @@ function todoBlock(){
  const done=S.todos.filter(x=>x.done).sort((a,b)=>(b.doneAt||'').localeCompare(a.doneAt||''));
  const rows=open.map(t=>`<div class="todo-item">
    <input class="todo-check" type="checkbox" onchange="toggleTodo('${t.id}',true)">
-   <div>${todoLabel(t.text,t.translation)}<div class="todo-meta">${t.by||'家庭'} · ${String(t.createdAt||'').slice(0,10)}</div></div>
+   <div>${todoLabel(t.text,t.translation)}<div class="todo-meta">${isHelper()?'Ditambahkan oleh｜新增：':'新增：'}${t.by||'家庭'} · ${String(t.createdAt||'').slice(0,10)}</div></div>
    <button class="mini" onclick="deleteTodo('${t.id}')">刪除</button>
  </div>`).join('')||`<div class="small">${isHelper()?'Tidak ada daftar yang harus dilakukan.｜目前沒有待辦。':'目前沒有待辦。'}</div>`;
  const completed=done.length?`<details class="collapse-box"><summary>已完成 ${done.length} 項</summary><div class="collapse-body">${done.slice(0,30).map(t=>`<div class="todo-item done-todo">
    <input class="todo-check" type="checkbox" checked onchange="toggleTodo('${t.id}',false)">
-   <div>${todoLabel(t.text,t.translation)}<div class="todo-meta">${t.doneBy||''}${t.doneAt?' · '+String(t.doneAt).slice(0,10):''}</div></div>
+   <div>${todoLabel(t.text,t.translation)}<div class="todo-meta">${isHelper()?'Ditambahkan oleh｜新增：':'新增：'}${t.by||'家庭'}${t.createdAt?' · '+String(t.createdAt).slice(0,10):''}<br>${isHelper()?'Diselesaikan oleh｜完成：':'完成：'}${t.doneBy||'未記錄'}${t.doneAt?' · '+String(t.doneAt).slice(0,10):''}</div></div>
    <button class="mini" onclick="deleteTodo('${t.id}')">刪除</button>
  </div>`).join('')}</div></details>`:'';
  return `${rows}${completed}<div class="todo-compose"><textarea id="todoInput" rows="2" placeholder="${isHelper()?'Contoh: Tisu hampir habis｜例如：衛生紙快沒了':'例如：衛生紙快沒了、洗衣精要買'}"></textarea><button class="btn" onclick="addTodo()">＋ 新增</button></div>`;
@@ -716,6 +716,23 @@ function deleteFlexibleTask(i){
  render(); warmBilingualCache();
 }
 function addFlexibleTaskFromForm(){const name=(document.getElementById('newTaskName')?.value||'').trim();if(!name)return;if(S.tasks.some(t=>t.name===name)){alert('這個家事已經存在');return;}const min=Number(document.getElementById('newTaskMin')?.value||7),max=Number(document.getElementById('newTaskMax')?.value||14),mins=Number(document.getElementById('newTaskMinutes')?.value||60);S.tasks.push({name,type:'彈性家事',minDays:min,maxDays:Math.max(max,min),minutes:mins,lastDone:null});S.pendingNewTaskName='';render()}
+
+function historyForDate(date){
+ const rows=(S.history||[]).filter(x=>x.date===date&&S.tasks.some(t=>t.name===x.name));
+ if(!rows.length)return '<div class="small">沒有彈性家事完成紀錄。</div>';
+ return rows.map(x=>{
+   const trn=x.noteTranslation||cachedTranslation(x.note||'');
+   let note='';
+   if(x.note){
+     note=isHelper()
+       ?`<div class="detail-note">${trn||x.note}${trn?`<div class="small">${x.note}</div>`:''}</div>`
+       :`<div class="detail-note">${x.note}${trn?`<div class="small">${trn}</div>`:''}</div>`;
+   }
+   const photo=x.photoPath?securePhotoHtml(x.photoPath):(x.photoUrl?`<img class="photo-thumb" src="${escAttr(x.photoUrl)}" alt="完成照片">`:'');
+   return `<div class="task"><b>✓ ${bilingualHtml(x.name)}</b><div class="small">完成者：${x.by||'未記錄'}</div>${note}${photo}</div>`;
+ }).join('');
+}
+
 function historyView(){
  const routineNames=new Set((S.routine||[]).map(r=>r.name));
  let dates=[...new Set(S.history.filter(x=>!routineNames.has(x.name)&&S.tasks.some(t=>t.name===x.name)).map(x=>x.date))].sort().reverse();
