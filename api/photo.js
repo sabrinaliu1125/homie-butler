@@ -11,19 +11,21 @@ export default async function handler(req,res){
   if(!path.startsWith('homie/completions/'))
     return res.status(400).json({error:'Invalid photo path'});
 
-  const token=process.env.BLOB_READ_WRITE_TOKEN;
-  if(!token)return res.status(503).json({error:'照片儲存尚未連接'});
-
   try{
-    const result=await get(path,{access:'private',token});
+    const result=await get(path,{
+      access:'private',
+      token:process.env.BLOB_READ_WRITE_TOKEN,
+      useCache:false
+    });
     if(!result)return res.status(404).json({error:'Photo not found'});
 
-    const ab=await new Response(result.stream).arrayBuffer();
-    res.setHeader('Content-Type','image/jpeg');
+    const {stream,blob}=result;
+    const ab=await new Response(stream).arrayBuffer();
+    res.setHeader('Content-Type',blob?.contentType||'image/jpeg');
     res.setHeader('Cache-Control','private, max-age=300');
     return res.status(200).send(Buffer.from(ab));
   }catch(e){
     console.error('Homie photo:',e);
-    return res.status(500).json({error:'照片讀取失敗'});
+    return res.status(500).json({error:e?.message||'照片讀取失敗'});
   }
 }

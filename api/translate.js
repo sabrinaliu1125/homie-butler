@@ -26,7 +26,7 @@ export default async function handler(req,res){
       translated=data.output.flatMap(x=>x.content||[]).filter(x=>x.type==='output_text').map(x=>x.text||'').join('').trim();
     }
     if(!translated) return res.status(500).json({error:'Empty translation'});
-    return res.status(200).json({ok:true,translated,direction:hasChinese?'zh-id':'id-zh'});
+    return res.status(200).json({ok:true,translated,translation:translated,direction:hasChinese?'zh-id':'id-zh'});
   }catch(e){
     console.error('Homie translate:',e);
     return res.status(500).json({error:'Translation failed'});
