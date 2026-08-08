@@ -231,7 +231,13 @@ function mode(date=S.selected){
  if(S.dateModes[date]) return S.dateModes[date];
  return S.weekdayModes[d(date).getDay()] || S.modeDefault;
 }
-function capacityMinutes(date=S.selected){return S.dateCapacity[date]===undefined?240:Number(S.dateCapacity[date])}
+function capacityMinutes(date=S.selected){
+ if(S.dateCapacity[date]===undefined || S.dateCapacity[date]===null || S.dateCapacity[date]===''){
+   S.dateCapacity[date]=240;
+ }
+ const n=Number(S.dateCapacity[date]);
+ return Number.isFinite(n)?n:240;
+}
 function setCapacityHours(h){S.dateCapacity[S.selected]=Math.max(0,Number(h)||0)*60;invalidatePlan();render()}
 function manualAdded(date=S.selected){return S.manualAdd[date]||[]}
 function priorityNames(date=S.selected){return []}
@@ -275,6 +281,7 @@ function buildPlan(date){
  return out;
 }
 function candidates(date){
+ capacityMinutes(date);
  let names=S.planned[date];
  if(!Array.isArray(names)) names=buildPlan(date);
  let removed=new Set(manualRemoved(date));
@@ -560,6 +567,7 @@ function restoreTodayFlow(id){
  render();
 }
 function hiddenFlowRows(helper=false){
+ if(helper)return '';
  const ids=S.hiddenFlow?.[S.selected]||[];
  const items=(S.flow||[]).filter(x=>ids.includes(x._id));
  if(!items.length)return '';
@@ -634,6 +642,7 @@ function restoreTodayRoutine(id){
  render();
 }
 function hiddenRoutineRows(helper=false){
+ if(helper)return '';
  const ids=S.hiddenRoutine?.[S.selected]||[];
  const items=(S.routine||[]).filter(x=>ids.includes(x._id));
  if(!items.length)return '';
