@@ -93,6 +93,10 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 .history-day .history-inside{padding:0 14px 8px}
 .section-note{font-size:12px;color:var(--muted);margin-top:-4px;margin-bottom:8px}
 
+
+.viewing-date-bar{margin:0 0 8px;padding:11px 14px;border:1px solid #cbdad1;border-radius:16px;background:#e7efe9;color:#496658}
+.viewing-date-bar .date-main{font-size:17px;font-weight:800}
+.viewing-date-bar .date-sub{font-size:12px;color:#718078;margin-bottom:2px}
 </style></head>
 <body><div id="pinGate" class="pin-gate">
 <div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">家庭雲端同步</div>
@@ -100,7 +104,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2 Beta · 日常整理版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2 Beta · 日常整理版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="chat">💬<br><span class="small">翻譯</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -793,7 +797,24 @@ function confirmRoleSwitch(){
  render();
 }
 
-function render(){syncRoleSelect();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():S.tab==='chat'?chatView():historyView();const ts=document.getElementById('todayShortcut');if(ts)ts.style.display=(S.tab==='today'&&S.selected===today())?'none':'block';save();if(cloudReady&&storedFamilyPin())setTimeout(hydratePrivatePhotos,0)}
+
+function renderViewingDateBar(){
+ const box=document.getElementById('viewingDateBar');if(!box)return;
+ if(S.tab!=='today'||S.selected===today()){box.innerHTML='';return}
+ const dt=d(S.selected);
+ const label=`${dt.getFullYear()}/${String(dt.getMonth()+1).padStart(2,'0')}/${String(dt.getDate()).padStart(2,'0')}`;
+ box.innerHTML=`<div class="viewing-date-bar"><div class="between">
+ <div><div class="date-sub">${isHelper()?'Sedang melihat｜正在查看':'正在查看'}</div><div class="date-main">${label}</div></div>
+ <button class="mini" onclick="goToday()">${isHelper()?'Kembali ke hari ini｜回本日':'回本日'}</button>
+ </div></div>`;
+}
+function updateTodayShortcut(){
+ const btn=document.getElementById('todayShortcut');if(!btn)return;
+ btn.textContent=isHelper()?'⌂ Kembali ke hari ini｜回本日':'⌂ 回本日';
+ btn.style.display=(S.tab==='today'&&S.selected===today())?'none':'block';
+}
+
+function render(){syncRoleSelect();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():S.tab==='chat'?chatView():historyView();renderViewingDateBar();updateTodayShortcut();save();if(cloudReady&&storedFamilyPin())setTimeout(hydratePrivatePhotos,0)}
 const pinInputEl=document.getElementById('pinInput'),pinLoginBtnEl=document.getElementById('pinLoginBtn');
 if(pinInputEl){pinInputEl.addEventListener('input',()=>{pinInputEl.value=pinInputEl.value.replace(/\D/g,'').slice(0,6);const e=document.getElementById('pinError');if(e)e.textContent=''});pinInputEl.addEventListener('keydown',e=>{if(e.key==='Enter')submitFamilyPin()})}
 if(pinLoginBtnEl)pinLoginBtnEl.addEventListener('click',submitFamilyPin);
