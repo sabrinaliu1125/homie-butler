@@ -178,7 +178,38 @@ function hidePinGate(){const g=document.getElementById('pinGate'),e=document.get
 async function apiRequest(action,data,pinOverride){const pin=(pinOverride||storedFamilyPin()).trim();if(!/^\d{6}$/.test(pin))throw new Error('PIN_REQUIRED');const res=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({action,pin,data:data===undefined?null:data})});let result=null;try{result=await res.json()}catch(_){}if(res.status===401)throw new Error('PIN_INVALID');if(!res.ok)throw new Error((result&&result.error)||('HTTP_'+res.status));return result}
 function save(){localStorage.setItem('homie12',JSON.stringify(S));if(cloudReady){clearTimeout(cloudTimer);cloudTimer=setTimeout(pushCloudState,450)}}
 async function pushCloudState(){if(cloudBusy||!cloudReady)return;try{cloudBusy=true;setSyncStatus('busy','同步中…');await apiRequest('save',S);setSyncStatus('ok','已同步')}catch(e){console.error(e);if(e.message==='PIN_INVALID'){cloudReady=false;localStorage.removeItem('homie_family_pin');setSyncStatus('err','PIN 驗證失敗');showPinGate('PIN 驗證失敗，請重新輸入。')}else setSyncStatus('err','同步失敗')}finally{cloudBusy=false}}
-async function loadCloudWithPin(pin){setSyncStatus('busy','連接雲端…');const result=await apiRequest('get',undefined,pin);localStorage.setItem('homie_family_pin',pin);if(result&&result.data){S=result.data;ensureV11State();localStorage.setItem('homie12',JSON.stringify(S));cloudReady=true;setSyncStatus('ok','雲端已同步');syncRoleSelect();render();if(!deviceMemberName()||(S.members||[]).every(m=>m.name!==deviceMemberName()))showMemberGate()}else{cloudReady=true;await apiRequest('save',S,pin);setSyncStatus('ok','已建立家庭雲端資料')}hidePinGate();if(!deviceMemberName()||(S.members||[]).every(m=>m.name!==deviceMemberName()))showMemberGate()}
+async function loadCloudWithPin(pin){
+ setSyncStatus('busy','連接雲端…');
+ const result=await apiRequest('get',undefined,pin);
+
+ // Authentication + cloud access succeeded here.
+ localStorage.setItem('homie_family_pin',pin);
+ cloudReady=true;
+
+ if(result&&result.data){
+   S=result.data;
+   ensureV11State();
+   localStorage.setItem('homie12',JSON.stringify(S));
+   setSyncStatus('ok','雲端已同步');
+ }else{
+   await apiRequest('save',S,pin);
+   setSyncStatus('ok','已建立家庭雲端資料');
+ }
+
+ hidePinGate();
+
+ // UI/background features must never turn a successful login into "cloud failed".
+ try{
+   syncRoleSelect();
+   render();
+ }catch(uiError){
+   console.error('Homie UI render after cloud login:',uiError);
+ }
+ setTimeout(()=>warmBilingualCache(),250);
+
+ if(!deviceMemberName()||(S.members||[]).every(m=>m.name!==deviceMemberName()))showMemberGate();
+}
+
 async function submitFamilyPin(){const i=document.getElementById('pinInput'),b=document.getElementById('pinLoginBtn'),e=document.getElementById('pinError');const pin=(i?.value||'').replace(/\D/g,'').slice(0,6);if(i)i.value=pin;if(!/^\d{6}$/.test(pin)){if(e)e.textContent='請輸入完整 6 位數 PIN。';return}try{if(b){b.disabled=true;b.textContent='驗證中…'}if(e)e.textContent='';await loadCloudWithPin(pin)}catch(x){console.error(x);localStorage.removeItem('homie_family_pin');cloudReady=false;if(x.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');if(e)e.textContent='PIN 不正確，請再試一次。'}else{setSyncStatus('err','雲端連線失敗');if(e)e.textContent='目前無法連接家庭雲端，請稍後再試。'}}finally{if(b){b.disabled=false;b.textContent='登入家庭資料'}}}
 async function initCloud(){const pin=storedFamilyPin();if(!pin){cloudReady=false;setSyncStatus('busy','等待家庭 PIN');showPinGate();return}try{await loadCloudWithPin(pin)}catch(e){console.error(e);localStorage.removeItem('homie_family_pin');cloudReady=false;if(e.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');showPinGate('已儲存的 PIN 無效，請重新輸入。')}else{setSyncStatus('err','雲端連線失敗');showPinGate('目前無法連接家庭雲端，請重新嘗試。')}}}
 
@@ -280,6 +311,7 @@ function securePhotoHtml(path){
   return `<div class="photo-state">🔒 私密完成照片</div><img class="photo-thumb secure-photo" data-photo-path="${escAttr(path)}" alt="完成照片" style="display:none">`;
 }
 async function hydratePrivatePhotos(){
+ if(!cloudReady || !storedFamilyPin()) return;
   const imgs=[...document.querySelectorAll('img.secure-photo[data-photo-path]')];
   for(const img of imgs){
     const path=img.dataset.photoPath;
@@ -387,6 +419,7 @@ function saveCachedTranslation(text,translated){
 async function ensureTranslation(text){
  const v=String(text||'').trim(); if(!v)return '';
  const hit=cachedTranslation(v); if(hit)return hit;
+ if(!cloudReady || !storedFamilyPin()) return '';
  try{
    const tr=await translateHomieText(v);
    saveCachedTranslation(v,tr);
@@ -397,7 +430,9 @@ function bilingualHtml(text,knownTranslation=''){
  const original=String(text||'').trim(); if(!original)return '';
  const tr=String(knownTranslation||cachedTranslation(original)||'').trim();
  if(!tr){
-   setTimeout(async()=>{const x=await ensureTranslation(original);if(x)render()},0);
+   if(cloudReady && storedFamilyPin()){
+     setTimeout(async()=>{const x=await ensureTranslation(original);if(x)render()},0);
+   }
    return `<span>${original}</span>`;
  }
  return isHelper()
@@ -408,10 +443,12 @@ function bilingualHtml(text,knownTranslation=''){
 async function translateHomieText(text){
  const v=String(text||'').trim();
  if(!v)return '';
+ const pin=storedFamilyPin();
+ if(!cloudReady || !pin) throw new Error('AUTH_NOT_READY');
  const r=await fetch('/api/translate',{
    method:'POST',
    headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({pin:storedFamilyPin(),text:v})
+   body:JSON.stringify({pin,text:v})
  });
  const j=await r.json().catch(()=>({}));
  if(!r.ok)throw new Error(j.error||'翻譯失敗');
@@ -608,6 +645,7 @@ function calendarView(){
 }
 
 function warmBilingualCache(){
+ if(!cloudReady || !storedFamilyPin()) return;
  const texts=[];
  Object.values(S.notes||{}).flat().forEach(n=>n?.text&&texts.push(n.text));
  (S.tasks||[]).forEach(x=>x?.name&&texts.push(x.name));
@@ -718,7 +756,7 @@ function confirmRoleSwitch(){
  render();
 }
 
-function render(){syncRoleSelect();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():S.tab==='chat'?chatView():historyView();const ts=document.getElementById('todayShortcut');if(ts)ts.style.display=(S.tab==='today'&&S.selected===today())?'none':'block';save();setTimeout(hydratePrivatePhotos,0)}
+function render(){syncRoleSelect();document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.tab===S.tab));V.innerHTML=S.tab==='today'?todayView():S.tab==='calendar'?calendarView():S.tab==='family'?familyView():S.tab==='chat'?chatView():historyView();const ts=document.getElementById('todayShortcut');if(ts)ts.style.display=(S.tab==='today'&&S.selected===today())?'none':'block';save();if(cloudReady&&storedFamilyPin())setTimeout(hydratePrivatePhotos,0)}
 const pinInputEl=document.getElementById('pinInput'),pinLoginBtnEl=document.getElementById('pinLoginBtn');
 if(pinInputEl){pinInputEl.addEventListener('input',()=>{pinInputEl.value=pinInputEl.value.replace(/\D/g,'').slice(0,6);const e=document.getElementById('pinError');if(e)e.textContent=''});pinInputEl.addEventListener('keydown',e=>{if(e.key==='Enter')submitFamilyPin()})}
 if(pinLoginBtnEl)pinLoginBtnEl.addEventListener('click',submitFamilyPin);
