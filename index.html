@@ -119,7 +119,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.14b Beta · 穩定修正版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.15 Beta · 共用翻譯同步版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="chat">💬<br><span class="small">翻譯</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -170,7 +170,7 @@ if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
 if(!S.planned) S.planned={};
 function makeId(prefix){return prefix+'_'+Math.random().toString(36).slice(2,9)}
-function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.tempFlow)S.tempFlow={};if(!S.tempRoutine)S.tempRoutine={};if(!S.extraManual)S.extraManual={};if(!S.extraHidden)S.extraHidden={};if(!S.scheduleNotes)S.scheduleNotes={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')});if(!S.extraSplitFix1211){
+function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.sharedTranslations)S.sharedTranslations={};if(!S.tempFlow)S.tempFlow={};if(!S.tempRoutine)S.tempRoutine={};if(!S.extraManual)S.extraManual={};if(!S.extraHidden)S.extraHidden={};if(!S.scheduleNotes)S.scheduleNotes={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')});if(!S.extraSplitFix1211){
  const _n=new Date(),_y=_n.getFullYear(),_m=String(_n.getMonth()+1).padStart(2,'0'),_d=String(_n.getDate()).padStart(2,'0'),_today=`${_y}-${_m}-${_d}`;
  S.manualAdd??={};S.manualRemove??={};S.planned??={};
  S.manualAdd[_today]=[];S.manualRemove[_today]=[];delete S.planned[_today];
@@ -219,8 +219,11 @@ function save(){
 
 function applyCloudState(result,notice=false){
  if(!result)return;
+ let mergeNeeded=false;
  if(result.data){
    S=result.data;ensureV11State();
+   mergeSharedTranslationsIntoLocal();
+   mergeNeeded=mergeLocalTranslationsIntoShared();
    localStorage.setItem('homie12',JSON.stringify(S));
  }
  cloudRevision=Number(result.revision||0);
@@ -228,7 +231,23 @@ function applyCloudState(result,notice=false){
  syncRoleSelect();
  render();
  if(notice)setSyncStatus('ok',`已重新整理 · v${cloudRevision}`);
+ if(mergeNeeded&&cloudReady)setTimeout(()=>{suppressNextPush=false;save()},900);
 }
+let autoCloudSyncTimer=null;
+async function silentRefreshFromCloud(){
+ if(!cloudReady||cloudBusy||document.hidden)return;
+ try{
+   const latest=await apiRequest('get');
+   const rev=Number(latest?.revision||0);
+   if(rev>cloudRevision)applyCloudState(latest,false);
+ }catch(e){console.error('silent cloud refresh',e)}
+}
+function startAutoCloudSync(){
+ if(autoCloudSyncTimer)clearInterval(autoCloudSyncTimer);
+ autoCloudSyncTimer=setInterval(silentRefreshFromCloud,20000);
+}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudReady)setTimeout(silentRefreshFromCloud,250)});
+window.addEventListener('focus',()=>{if(cloudReady)setTimeout(silentRefreshFromCloud,250)});
 
 async function refreshFromCloud(){
  if(!cloudReady||cloudBusy)return;
@@ -275,23 +294,27 @@ async function loadCloudWithPin(pin){
  setSyncStatus('busy','連接雲端…');
  const result=await apiRequest('get',undefined,pin);
  localStorage.setItem('homie_family_pin',pin);
-
+ let mergeNeeded=false;
  if(result&&result.data){
    S=result.data;ensureV11State();
    cloudRevision=Number(result.revision||0);
+   mergeSharedTranslationsIntoLocal();
+   mergeNeeded=mergeLocalTranslationsIntoShared();
    localStorage.setItem('homie12',JSON.stringify(S));
    cloudReady=true;
    setSyncStatus('ok',`雲端已同步 · v${cloudRevision}`);
  }else{
    cloudRevision=0;cloudReady=true;
+   mergeLocalTranslationsIntoShared();
    const created=await apiRequest('save',S,pin);
    cloudRevision=Number(created.revision||1);
    setSyncStatus('ok',`已建立家庭雲端資料 · v${cloudRevision}`);
  }
-
  hidePinGate();
  try{syncRoleSelect();suppressNextPush=true;render()}catch(uiError){console.error('Homie UI render after cloud login:',uiError)}
  setTimeout(()=>warmBilingualCache(),250);
+ if(mergeNeeded)setTimeout(()=>{suppressNextPush=false;save()},1000);
+ startAutoCloudSync();
  if(!deviceMemberName()||(S.members||[]).every(m=>m.name!==deviceMemberName()))showMemberGate();
 }
 async function submitFamilyPin(){const i=document.getElementById('pinInput'),b=document.getElementById('pinLoginBtn'),e=document.getElementById('pinError');const pin=(i?.value||'').replace(/\D/g,'').slice(0,6);if(i)i.value=pin;if(!/^\d{6}$/.test(pin)){if(e)e.textContent='請輸入完整 6 位數 PIN。';return}try{if(b){b.disabled=true;b.textContent='驗證中…'}if(e)e.textContent='';await loadCloudWithPin(pin)}catch(x){console.error(x);localStorage.removeItem('homie_family_pin');cloudReady=false;if(x.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');if(e)e.textContent='PIN 不正確，請再試一次。'}else{setSyncStatus('err','雲端連線失敗');if(e)e.textContent='目前無法連接家庭雲端，請稍後再試。'}}finally{if(b){b.disabled=false;b.textContent='登入家庭資料'}}}
@@ -524,43 +547,35 @@ function translationCache(){
  try{return JSON.parse(localStorage.getItem(HOMIE_TRANSLATION_CACHE_KEY)||'{}')}catch(e){return {}}
 }
 function cachedTranslation(text){
- const c=translationCache();return c[String(text||'').trim()]||'';
+ const key=String(text||'').trim();if(!key)return '';
+ return (S.sharedTranslations||{})[key]||translationCache()[key]||'';
 }
-function saveCachedTranslation(text,translated){
- const key=String(text||'').trim(); if(!key||!translated)return;
- const c=translationCache(); c[key]=translated;
- const keys=Object.keys(c); if(keys.length>500)delete c[keys[0]];
+function saveCachedTranslation(text,translated,{sync=true}={}){
+ const key=String(text||'').trim();if(!key||!translated)return false;
+ let changed=false;
+ const c=translationCache();
+ if(c[key]!==translated){c[key]=translated;changed=true}
+ const keys=Object.keys(c);if(keys.length>800)delete c[keys[0]];
  localStorage.setItem(HOMIE_TRANSLATION_CACHE_KEY,JSON.stringify(c));
+ S.sharedTranslations??={};
+ if(S.sharedTranslations[key]!==translated){S.sharedTranslations[key]=translated;changed=true}
+ if(changed&&sync&&cloudReady)save();
+ return changed;
 }
-const translationInFlight=new Map();
-async function ensureTranslation(text){
- const v=String(text||'').trim(); if(!v)return '';
- const hit=cachedTranslation(v); if(hit)return hit;
- if(!cloudReady || !storedFamilyPin()) return '';
- if(translationInFlight.has(v))return translationInFlight.get(v);
- const p=(async()=>{
-   try{
-     const tr=await translateHomieText(v);
-     saveCachedTranslation(v,tr);
-     return tr;
-   }catch(e){console.error('auto translate',e);return ''}
-   finally{translationInFlight.delete(v)}
- })();
- translationInFlight.set(v,p);
- return p;
-}
-function bilingualHtml(text,knownTranslation=''){
- const original=String(text||'').trim(); if(!original)return '';
- const tr=String(knownTranslation||cachedTranslation(original)||'').trim();
- if(!tr){
-   if(cloudReady && storedFamilyPin()){
-     setTimeout(async()=>{const x=await ensureTranslation(original);if(x)render()},0);
-   }
-   return `<span>${original}</span>`;
+function mergeLocalTranslationsIntoShared(){
+ const local=translationCache();S.sharedTranslations??={};let changed=false;
+ for(const [k,v] of Object.entries(local)){
+   if(k&&v&&!S.sharedTranslations[k]){S.sharedTranslations[k]=v;changed=true}
  }
- return isHelper()
-   ? `<span>${tr}</span><div class="small">${original}</div>`
-   : `<span>${original}</span><div class="small">${tr}</div>`;
+ return changed;
+}
+function mergeSharedTranslationsIntoLocal(){
+ const shared=S.sharedTranslations||{},local=translationCache();let changed=false;
+ for(const [k,v] of Object.entries(shared)){
+   if(k&&v&&local[k]!==v){local[k]=v;changed=true}
+ }
+ if(changed)localStorage.setItem(HOMIE_TRANSLATION_CACHE_KEY,JSON.stringify(local));
+ return changed;
 }
 
 async function translateHomieText(text){
@@ -1002,10 +1017,11 @@ function warmBilingualCache(){
  (S.flow||[]).forEach(x=>{if(x?.name)texts.push(x.name);if(x?.who)texts.push(x.who)});
  (S.routine||[]).forEach(x=>{if(x?.name)texts.push(x.name);if(x?.preferred)texts.push(`建議${x.preferred}`)});
  (S.todos||[]).forEach(x=>x?.text&&texts.push(x.text));
+ (S.chat||[]).forEach(x=>x?.text&&texts.push(x.text));
+ Object.values(S.scheduleNotes||{}).forEach(x=>{const t=typeof x==='string'?x:x?.text;if(t)texts.push(t)});
  Object.values(S.completionDetails||{}).forEach(day=>Object.values(day||{}).forEach(x=>x?.note&&texts.push(x.note)));
- [...new Set(texts)].slice(0,80).forEach(x=>{if(!cachedTranslation(x))ensureTranslation(x)});
+ [...new Set(texts)].slice(0,120).forEach(x=>{if(!cachedTranslation(x))ensureTranslation(x)});
 }
-
 function managerScheduledRow(t){let dn=isItemDone('task',t),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';return `<div class="task ${dn?'done':''}" style="margin-bottom:8px"><div class="between"><div style="flex:1;min-width:0"><div class="name"><b>${bilingualHtml(t.name)}</b></div><div class="small">${last} · ${t.minDays}～${t.maxDays}天</div></div><div class="task-actions"><button class="mini danger" onclick="removeFromToday('${t.name.replace(/'/g,"\\'")}')">今天不排</button><button class="mini" onclick="openCompletion('task','${t.name.replace(/'/g,"\\'")}')">${dn?'✓ 已完成':'✓ 完成'}</button></div></div>${completionDetailsHtml('task',t)}</div>`}
 function removeFromToday(name){const item=S.tasks.find(x=>x.name===name);if(item&&isItemDone('task',item)){alert('這個項目已完成，請先取消完成後再移除。');return}(S.manualRemove[S.selected]??=[]);if(!S.manualRemove[S.selected].includes(name))S.manualRemove[S.selected].push(name);invalidatePlan();S.manualAdd[S.selected]=(S.manualAdd[S.selected]||[]).filter(x=>x!==name);S.priorities[S.selected]=(S.priorities[S.selected]||[]).filter(x=>(typeof x==='string'?x:x.name)!==name);render()}
 function openSchedulePicker(){sdlg.showModal();setTimeout(renderScheduleMatches,0)}
