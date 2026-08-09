@@ -119,7 +119,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.12 Beta · 額外建議手動版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.13 Beta · 額外建議殘留清理版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="chat">💬<br><span class="small">翻譯</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -175,6 +175,13 @@ function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.temp
  S.manualAdd??={};S.manualRemove??={};S.planned??={};
  S.manualAdd[_today]=[];S.manualRemove[_today]=[];delete S.planned[_today];
  S.extraSplitFix1211=true
+};if(!S.extraManualCleanup1213){
+ const _n=new Date(),_y=_n.getFullYear(),_m=String(_n.getMonth()+1).padStart(2,'0'),_d=String(_n.getDate()).padStart(2,'0'),_today=`${_y}-${_m}-${_d}`;
+ S.extraManual??={};
+ S.extraHidden??={};
+ S.extraManual[_today]=[];
+ S.extraHidden[_today]=[];
+ S.extraManualCleanup1213=true
 }}
 ensureV11State();
 
@@ -894,7 +901,7 @@ function extraSuggestionManager(){
 
 function extraSuggestionsBlock(){
  const items=extraSuggestions(S.selected);
- const rows=items.map(t=>`<div class="task"><div class="between"><div style="flex:1;min-width:0"><div>${bilingualHtml(t.name)}</div><div class="small">${t.lastDone?'上次：'+t.lastDone:'尚無完成紀錄'} · 約 ${t.minutes} 分鐘 · 有空再做</div></div><div class="task-actions"><button class="mini" onclick="openCompletion('task','${t.name.replace(/'/g,"\\'")}')">✓ 完成</button><button class="mini danger" onclick="hideExtraSuggestion('${t.name.replace(/'/g,"\\'")}')">今天隱藏</button></div></div></div>`).join('')||'<div class="small">今天沒有因身體狀況移動或手動增加的額外工作。</div>';
+ const rows=items.map(t=>`<div class="task"><div class="between"><div style="flex:1;min-width:0"><div>${bilingualHtml(t.name)}</div><div class="small">${t.lastDone?'上次：'+t.lastDone:'尚無完成紀錄'} · 約 ${t.minutes} 分鐘 · 有空再做</div></div><div class="task-actions"><button class="mini" onclick="openCompletion('task','${t.name.replace(/'/g,"\\'")}')">✓ 完成</button><button class="mini danger" onclick="hideExtraSuggestion('${t.name.replace(/'/g,"\\'")}')">今天隱藏</button></div></div></div>`).join('')||'<div class="small">目前沒有額外工作。只有身體狀況移動或手動增加的工作會出現在這裡。</div>';
  return rows+hiddenExtraRows()+extraSuggestionManager();
 }
 
@@ -1076,7 +1083,7 @@ function helperView(){
  let extraBase=extraSuggestions(S.selected);
  let seen=new Set(scheduled.map(t=>t.name));
  let suggestions=[...moved,...extraBase].filter((t,i,a)=>!seen.has(t.name)&&!completed(S.selected,t.name)&&a.findIndex(x=>x.name===t.name)===i);
- let sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div style="flex:1;min-width:0"><b>${tr(t.name)}</b><span class="zh">${bilingualHtml(t.name)}</span><div class="small">${moved.some(x=>x.name===t.name)?'Opsional karena kondisi hari ini｜因今天身體狀況改為有空再做':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="openCompletion('task','${t.name.replace(/'/g,"\\'")}')">✓ Selesai｜完成</button></div></div>`).join('')||'<div class="small">Tidak ada pekerjaan ekstra hari ini.｜今天沒有因身體狀況移動或手動增加的額外工作。</div>';
+ let sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div style="flex:1;min-width:0"><b>${tr(t.name)}</b><span class="zh">${bilingualHtml(t.name)}</span><div class="small">${moved.some(x=>x.name===t.name)?'Opsional karena kondisi hari ini｜因今天身體狀況改為有空再做':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="openCompletion('task','${t.name.replace(/'/g,"\\'")}')">✓ Selesai｜完成</button></div></div>`).join('')||'<div class="small">Tidak ada pekerjaan ekstra hari ini.｜目前沒有額外工作。只有身體狀況移動或手動增加的工作會出現在這裡。</div>';
  return `<div class="small">${currentName()} · Selamat pagi｜早安</div><h1>Hari ini｜今天</h1>
  ${card('Kondisi hari ini｜身體狀態',`<div class="statusgrid">${sts.map(([zh,id])=>`<button class="status ${S.health===zh?'active':''}" onclick="S.health='${zh}';render()">${id}<br><span class="small">${zh}</span></button>`).join('')}</div>`)}
  ${card('📌 Pengingat hari ini｜今日提醒',reminderBlock(S.selected,false))}
