@@ -37,7 +37,7 @@ async function translateText(text) {
 
   // 先沿用目前已可用的模型，LINE Bot 穩定後只要改環境變數即可切換模型，
   // 不必再修改這支程式。
-  const model = String(process.env.OPENAI_TRANSLATION_MODEL || 'gpt-5-mini').trim();
+  const model = String(process.env.OPENAI_TRANSLATION_MODEL || 'gpt-5.6-luna').trim();
 
   const hasChinese = /[\u3400-\u9FFF]/.test(text);
 
