@@ -108,7 +108,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.7 Beta · 安全同步版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.9 Beta · 雙語提示＋安排備註版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="chat">💬<br><span class="small">翻譯</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -159,7 +159,7 @@ if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
 if(!S.planned) S.planned={};
 function makeId(prefix){return prefix+'_'+Math.random().toString(36).slice(2,9)}
-function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.tempFlow)S.tempFlow={};if(!S.tempRoutine)S.tempRoutine={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')})}
+function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.tempFlow)S.tempFlow={};if(!S.tempRoutine)S.tempRoutine={};if(!S.extraManual)S.extraManual={};if(!S.extraHidden)S.extraHidden={};if(!S.scheduleNotes)S.scheduleNotes={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')})}
 ensureV11State();
 
 
@@ -354,14 +354,22 @@ function candidates(date){
 function invalidatePlan(date=S.selected){delete S.planned[date]}
 function extraSuggestions(date){
  if(mode(date)!=='家事日')return [];
- let scheduled=new Set(candidates(date).map(t=>t.name));
- let used=candidates(date).reduce((s,t)=>s+(t.minutes||0),0);
- let remaining=Math.max(0,capacityMinutes(date)-used);
- return S.tasks.filter(t=>!scheduled.has(t.name) && !completed(date,t.name))
+ const hidden=new Set(S.extraHidden?.[date]||[]);
+ const manual=S.extraManual?.[date]||[];
+ const scheduled=new Set(candidates(date).map(t=>t.name));
+ const used=candidates(date).reduce((s,t)=>s+(t.minutes||0),0);
+ const remaining=Math.max(0,capacityMinutes(date)-used);
+
+ const auto=S.tasks.filter(t=>!scheduled.has(t.name) && !completed(date,t.name) && !hidden.has(t.name))
    .filter(t=>daysSince(t.lastDone,date)>=Math.max(1,Math.floor(t.minDays*0.7)))
    .sort((a,b)=>daysSince(b.lastDone,date)-daysSince(a.lastDone,date))
    .filter(t=>(t.minutes||0)<=remaining)
    .slice(0,2);
+
+ const manualItems=manual.map(n=>S.tasks.find(t=>t.name===n))
+   .filter(t=>t && !scheduled.has(t.name) && !completed(date,t.name) && !hidden.has(t.name));
+
+ return [...manualItems,...auto].filter((t,i,a)=>a.findIndex(x=>x.name===t.name)===i);
 }
 function workload(date){let a=candidates(date),m=a.reduce((s,t)=>s+t.minutes,0),cap=capacityMinutes(date);return {items:a,mins:m,left:Math.max(0,cap-m),cap}}
 function reminderBlock(date,canEdit=false){
@@ -501,15 +509,22 @@ function saveCachedTranslation(text,translated){
  const keys=Object.keys(c); if(keys.length>500)delete c[keys[0]];
  localStorage.setItem(HOMIE_TRANSLATION_CACHE_KEY,JSON.stringify(c));
 }
+const translationInFlight=new Map();
 async function ensureTranslation(text){
  const v=String(text||'').trim(); if(!v)return '';
  const hit=cachedTranslation(v); if(hit)return hit;
  if(!cloudReady || !storedFamilyPin()) return '';
- try{
-   const tr=await translateHomieText(v);
-   saveCachedTranslation(v,tr);
-   return tr;
- }catch(e){console.error('auto translate',e);return ''}
+ if(translationInFlight.has(v))return translationInFlight.get(v);
+ const p=(async()=>{
+   try{
+     const tr=await translateHomieText(v);
+     saveCachedTranslation(v,tr);
+     return tr;
+   }catch(e){console.error('auto translate',e);return ''}
+   finally{translationInFlight.delete(v)}
+ })();
+ translationInFlight.set(v,p);
+ return p;
 }
 function bilingualHtml(text,knownTranslation=''){
  const original=String(text||'').trim(); if(!original)return '';
@@ -636,7 +651,7 @@ function hiddenFlowRows(helper=false){
  const items=(S.flow||[]).filter(x=>ids.includes(x._id));
  if(!items.length)return '';
  return `<details class="collapse-box"><summary>${helper?'Alur tersembunyi hari ini｜今天已隱藏的流程':'今天已隱藏的流程'}（${items.length}）</summary>
- <div class="collapse-body">${items.map(f=>`<div class="flow between"><div><b>${bilingualHtml(f.name)}</b><div class="small">${f.time} · ${f.who}</div></div>${isManager()?`<button class="mini" onclick="restoreTodayFlow('${f._id}')">恢復</button>`:''}</div>`).join('')}</div></details>`;
+ <div class="collapse-body">${items.map(f=>`<div class="flow between"><div><b>${bilingualHtml(f.name)}</b><div class="small">${f.time}</div><div class="small">${bilingualHtml(f.who)}</div></div>${isManager()?`<button class="mini" onclick="restoreTodayFlow('${f._id}')">恢復</button>`:''}</div>`).join('')}</div></details>`;
 }
 function tempFlowComposer(){
  if(!isManager())return '';
@@ -664,7 +679,7 @@ function flowRows(helper=false){
      <div class="between">
        <div class="row" style="flex:1">
          <div style="width:52px" class="small">${f.time}</div>
-         <div><div class="name"><b>${nameHtml}</b>${f._temp?` <span class="tag">${helper?'Sementara｜臨時':'臨時'}</span>`:''}</div><div class="small">${f.who}</div></div>
+         <div><div class="name"><b>${nameHtml}</b>${f._temp?` <span class="tag">${helper?'Sementara｜臨時':'臨時'}</span>`:''}</div><div class="small">${bilingualHtml(f.who)}</div></div>
        </div>
        <div class="task-actions">
          ${removeBtn}
@@ -711,7 +726,7 @@ function hiddenRoutineRows(helper=false){
  const items=(S.routine||[]).filter(x=>ids.includes(x._id));
  if(!items.length)return '';
  return `<details class="collapse-box"><summary>${helper?'Rutinitas tersembunyi hari ini｜今天已隱藏的每日維持':'今天已隱藏的每日維持'}（${items.length}）</summary>
- <div class="collapse-body">${items.map(r=>`<div class="task between"><div><b>${bilingualHtml(r.name)}</b><div class="small">${r.preferred||''}${r.minutes?` · ${r.minutes} 分鐘`:''}</div></div>${isManager()?`<button class="mini" onclick="restoreTodayRoutine('${r._id}')">恢復</button>`:''}</div>`).join('')}</div></details>`;
+ <div class="collapse-body">${items.map(r=>`<div class="task between"><div><b>${bilingualHtml(r.name)}</b>${r.preferred?`<div class="small">${bilingualHtml(`建議${r.preferred}`)}</div>`:''}<div class="small">${r.minutes?`${r.minutes} 分鐘`:''}</div></div>${isManager()?`<button class="mini" onclick="restoreTodayRoutine('${r._id}')">恢復</button>`:''}</div>`).join('')}</div></details>`;
 }
 function tempRoutineComposer(){
  if(!isManager())return '';
@@ -727,7 +742,7 @@ function tempRoutineComposer(){
 function routineRows(helper=false){
  const rows=visibleRoutine().map(r=>{
    const dn=isItemDone('routine',r);
-   const hint=r.preferred?`<div class="small">${helper&&r.preferred==='傍晚'?'Sebaiknya sore｜建議傍晚':r.preferred}</div>`:'';
+   const hint=r.preferred?`<div class="small">${bilingualHtml(`建議${r.preferred}`)}</div>`:'';
    const removeBtn=isManager()
      ? (dn
        ? `<button class="mini" disabled style="opacity:.45" title="請先取消完成">已完成・不可移除</button>`
@@ -806,6 +821,99 @@ function goToday(){
  window.scrollTo({top:0,behavior:'smooth'});
 }
 
+
+function hideExtraSuggestion(name){
+ if(!isManager())return;
+ S.extraHidden??={};S.extraHidden[S.selected]??=[];
+ if(!S.extraHidden[S.selected].includes(name))S.extraHidden[S.selected].push(name);
+ S.extraManual??={};S.extraManual[S.selected]=(S.extraManual[S.selected]||[]).filter(x=>x!==name);
+ render();
+}
+function restoreExtraSuggestion(name){
+ S.extraHidden??={};S.extraHidden[S.selected]=(S.extraHidden[S.selected]||[]).filter(x=>x!==name);
+ render();
+}
+function addExtraSuggestion(name){
+ if(!isManager())return;
+ S.extraManual??={};S.extraManual[S.selected]??=[];
+ if(!S.extraManual[S.selected].includes(name))S.extraManual[S.selected].push(name);
+ S.extraHidden??={};S.extraHidden[S.selected]=(S.extraHidden[S.selected]||[]).filter(x=>x!==name);
+ render();
+}
+function hiddenExtraRows(){
+ if(!isManager())return '';
+ const names=S.extraHidden?.[S.selected]||[];
+ const items=names.map(n=>S.tasks.find(t=>t.name===n)).filter(Boolean);
+ if(!items.length)return '';
+ return `<details class="collapse-box"><summary>今天已隱藏的額外建議（${items.length}）</summary><div class="collapse-body">
+ ${items.map(t=>`<div class="task between"><div><b>${bilingualHtml(t.name)}</b><div class="small">約 ${t.minutes} 分鐘</div></div><button class="mini" onclick="restoreExtraSuggestion('${t.name.replace(/'/g,"\\'")}')">恢復</button></div>`).join('')}
+ </div></details>`;
+}
+function extraSuggestionManager(){
+ if(!isManager())return '';
+ const shown=new Set(extraSuggestions(S.selected).map(t=>t.name));
+ const scheduled=new Set(candidates(S.selected).map(t=>t.name));
+ const options=(S.tasks||[]).filter(t=>!shown.has(t.name)&&!scheduled.has(t.name)&&!completed(S.selected,t.name));
+ return `<details class="collapse-box"><summary>＋ 調整今天額外建議</summary><div class="collapse-body">
+   <div class="small">可以手動加入尚未排進今天工作的家事。</div>
+   <div style="height:8px"></div>
+   <select id="extraSuggestionSelect">${options.length?options.map(t=>`<option value="${escAttr(t.name)}">${t.name} · 約 ${t.minutes} 分鐘</option>`).join(''):'<option value="">沒有其他可加入項目</option>'}</select>
+   <div style="height:8px"></div><button class="btn secondary full" onclick="const v=document.getElementById('extraSuggestionSelect').value;if(v)addExtraSuggestion(v)">加入額外建議</button>
+ </div></details>`;
+}
+function extraSuggestionsBlock(){
+ const items=extraSuggestions(S.selected);
+ const rows=items.map(t=>`<div class="task"><div class="between"><div><b>${bilingualHtml(t.name)}</b><div class="small">${t.lastDone?'上次：'+t.lastDone:'尚無完成紀錄'} · 約 ${t.minutes} 分鐘</div></div><div class="task-actions"><span class="tag">有空再做</span>${isManager()?`<button class="mini danger" onclick="hideExtraSuggestion('${t.name.replace(/'/g,"\\'")}')">今天隱藏</button>`:''}</div></div></div>`).join('')||'<div class="small">今天沒有額外建議，照原本安排就好。</div>';
+ return rows+hiddenExtraRows()+extraSuggestionManager();
+}
+
+
+function scheduleNoteObj(date=S.selected){
+ const v=S.scheduleNotes?.[date];
+ if(!v)return null;
+ if(typeof v==='string')return {text:v,translation:cachedTranslation(v)||''};
+ return v;
+}
+function scheduleNoteReadOnly(date=S.selected){
+ const n=scheduleNoteObj(date);
+ if(!n?.text)return '';
+ return `<div class="schedule-note" style="margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:#faf7f1">
+   <div class="small" style="font-weight:800;margin-bottom:4px">${isHelper()?'Catatan hari ini｜今日安排備註':'今日安排備註'}</div>
+   <div>${bilingualHtml(n.text,n.translation||'')}</div>
+ </div>`;
+}
+function scheduleNoteEditor(date=S.selected){
+ if(!isManager())return scheduleNoteReadOnly(date);
+ const n=scheduleNoteObj(date)||{};
+ const preview=n.text?`<div style="margin-top:8px">${bilingualHtml(n.text,n.translation||'')}</div>`:'';
+ return `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+   <div class="small" style="font-weight:800;margin-bottom:6px">今日安排備註（選填）</div>
+   <textarea id="scheduleNoteInput" rows="2" placeholder="例如：今天床單不用換">${escAttr(n.text||'')}</textarea>
+   <div style="height:8px"></div>
+   <div class="row"><button class="mini" onclick="saveScheduleNote()">儲存備註</button>${n.text?`<button class="mini danger" onclick="clearScheduleNote()">清除</button>`:''}</div>
+   ${preview}
+ </div>`;
+}
+async function saveScheduleNote(){
+ if(!isManager())return;
+ const el=document.getElementById('scheduleNoteInput');
+ const text=String(el?.value||'').trim();
+ S.scheduleNotes??={};
+ if(!text){delete S.scheduleNotes[S.selected];render();return}
+ const old=scheduleNoteObj(S.selected);
+ S.scheduleNotes[S.selected]={text,translation:old?.text===text?(old.translation||''):'',by:currentName(),updatedAt:new Date().toISOString()};
+ render();
+ const translation=await ensureTranslation(text);
+ if(S.scheduleNotes?.[S.selected]?.text===text && translation){
+   S.scheduleNotes[S.selected].translation=translation;
+   render();
+ }
+}
+function clearScheduleNote(){
+ if(!isManager())return;
+ S.scheduleNotes??={};delete S.scheduleNotes[S.selected];render();
+}
+
 function todayView(){
  if(isHelper())return helperView();
  if(isObserver())return observerView();
@@ -819,9 +927,9 @@ function todayView(){
  ${card('📌 今日提醒',reminderBlock(S.selected,true))}
  ${card('📝 家庭待辦／採買提醒',todoBlock())}
  ${card('🌞 今日流程',flowRows(false))}
- ${card('🧹 今日安排',tasks+`<div style="height:8px"></div><button class="btn secondary full" onclick="openSchedulePicker()">＋ 管理者新增／調整今日工作</button>`)}
+ ${card('🧹 今日安排',tasks+scheduleNoteEditor(S.selected)+`<div style="height:8px"></div><button class="btn secondary full" onclick="openSchedulePicker()">＋ 管理者新增／調整今日工作</button>`)}
  ${card('🏠 每日維持',routineRows(false))}
- ${card('✨ Homie 額外建議',extraSuggestions(S.selected).map(t=>`<div class="task"><div class="between"><div><b>${bilingualHtml(t.name)}</b><div class="small">${t.lastDone?'上次：'+t.lastDone:'尚無完成紀錄'} · 約 ${t.minutes} 分鐘</div></div><span class="tag">有空再做</span></div></div>`).join('')||'<div class="small">今天沒有額外建議，照原本安排就好。</div>')}`;
+ ${card('✨ Homie 額外建議',extraSuggestionsBlock())}`;
 }
 
 function chatView(){
@@ -876,8 +984,8 @@ function warmBilingualCache(){
  const texts=[];
  Object.values(S.notes||{}).flat().forEach(n=>n?.text&&texts.push(n.text));
  (S.tasks||[]).forEach(x=>x?.name&&texts.push(x.name));
- (S.flow||[]).forEach(x=>x?.name&&texts.push(x.name));
- (S.routine||[]).forEach(x=>x?.name&&texts.push(x.name));
+ (S.flow||[]).forEach(x=>{if(x?.name)texts.push(x.name);if(x?.who)texts.push(x.who)});
+ (S.routine||[]).forEach(x=>{if(x?.name)texts.push(x.name);if(x?.preferred)texts.push(`建議${x.preferred}`)});
  (S.todos||[]).forEach(x=>x?.text&&texts.push(x.text));
  Object.values(S.completionDetails||{}).forEach(day=>Object.values(day||{}).forEach(x=>x?.note&&texts.push(x.note)));
  [...new Set(texts)].slice(0,80).forEach(x=>{if(!cachedTranslation(x))ensureTranslation(x)});
@@ -891,8 +999,8 @@ function addToToday(name){(S.manualAdd[S.selected]??=[]);if(!S.manualAdd[S.selec
 function openHelperAdd(){hadddlg.showModal();setTimeout(renderHelperAddMatches,0)}
 function renderHelperAddMatches(){const box=document.getElementById('helperAddMatches'),input=document.getElementById('haddin');if(!box||!input)return;const q=input.value.trim().toLowerCase(),already=new Set(candidates(S.selected).map(t=>t.name));let matches=S.tasks.filter(t=>(!q||t.name.toLowerCase().includes(q))&&!already.has(t.name)).slice(0,12);box.innerHTML=matches.length?matches.map(t=>`<button class="search-item" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')"><b>${tr(t.name)}</b><div class="small">${bilingualHtml(t.name)} · ± ${t.minutes} menit｜分鐘</div></button>`).join(''):'<div class="small" style="padding:12px">Tidak ada pilihan lain.｜沒有其他可選工作。</div>'}
 function helperAddToToday(name){(S.manualAdd[S.selected]??=[]);if(!S.manualAdd[S.selected].includes(name))S.manualAdd[S.selected].push(name);S.manualRemove[S.selected]=(S.manualRemove[S.selected]||[]).filter(x=>x!==name);invalidatePlan();hadddlg.close();render()}
-function taskRow(t,helper=false,even=false){const kind=even?'routine':'task',dn=isItemDone(kind,t),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';if(helper){let hint=even&&t.preferred?`<div class="small">${t.preferred==='傍晚'?'Sebaiknya sore｜建議傍晚':t.preferred}</div>`:'';return `<div class="task bilingual ${dn?'done':''}"><div class="between"><div><div class="name"><b>${tr(t.name)}</b></div><span class="zh">${bilingualHtml(t.name)}</span>${hint}</div><div class="task-actions"><button class="mini" onclick="openCompletion('${kind}','${even?t._id:t.name.replace(/'/g,"\\'")}')">${dn?'✓ Sudah selesai｜已完成':'Selesai｜完成'}</button></div></div>${completionDetailsHtml(kind,t)}</div>`}let sub=even?(t.preferred?`建議${t.preferred}`:''):`${last} · ${t.minDays}～${t.maxDays}天`;return `<div class="task ${dn?'done':''}"><div class="between"><div><div class="name"><b>${bilingualHtml(t.name)}</b></div>${sub?`<div class="small">${sub}</div>`:''}</div><div class="task-actions">${even&&isManager()?(dn?`<button class="mini" disabled style="opacity:.45" title="請先取消完成">已完成・不可移除</button>`:`<button class="mini danger" onclick="hideTodayItem('routine','${t._id}')">今天移除</button>`):''}<button class="mini" onclick="openCompletion('${kind}','${even?t._id:t.name.replace(/'/g,"\\'")}')">${dn?'✓ 已完成':'✓ 完成'}</button></div></div>${completionDetailsHtml(kind,t)}</div>`}
-function helperView(){let sts=[['很好','Baik sekali'],['正常','Baik'],['有點累','Agak lelah'],['不舒服','Kurang sehat']],base=workload(S.selected),forced=new Set([...manualAdded(S.selected)]),completedItems=base.items.filter(t=>isItemDone('task',t)),forcedItems=base.items.filter(t=>forced.has(t.name)&&!isItemDone('task',t)),normalItems=base.items.filter(t=>!forced.has(t.name)&&!isItemDone('task',t)),scheduled=[...completedItems,...forcedItems,...normalItems],moved=[];if(S.health==='有點累'){const keepCount=Math.max(0,Math.ceil(normalItems.length/2));scheduled=[...completedItems,...forcedItems,...normalItems.slice(0,keepCount)];moved=normalItems.slice(keepCount)}if(S.health==='不舒服'){scheduled=[...completedItems,...forcedItems];moved=normalItems}let extraBase=extraSuggestions(S.selected),seen=new Set(scheduled.map(t=>t.name)),suggestions=[...moved,...extraBase].filter((t,i,a)=>!seen.has(t.name)&&a.findIndex(x=>x.name===t.name)===i),sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div><b>${tr(t.name)}</b><span class="zh">${bilingualHtml(t.name)}</span><div class="small">${moved.some(x=>x.name===t.name)?'Dipindahkan karena kondisi hari ini｜因今天身體狀況移到建議':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')">＋ Kerjakan｜加入</button></div></div>`).join('')||'<div class="small">Tidak ada saran tambahan hari ini.｜今天沒有額外建議。</div>';return `<div class="small">${currentName()} · Selamat pagi｜早安</div><h1>Hari ini｜今天</h1>${card('Kondisi hari ini｜身體狀態',`<div class="statusgrid">${sts.map(([zh,id])=>`<button class="status ${S.health===zh?'active':''}" onclick="S.health='${zh}';render()">${id}<br><span class="small">${zh}</span></button>`).join('')}</div>`)}${card('📌 Pengingat hari ini｜今日提醒',reminderBlock(S.selected,false))}${card('📝 Daftar keluarga｜家庭待辦',todoBlock())}${card('🌞 Alur hari ini｜今日流程',flowRows(true))}${card('🧹 Pekerjaan terjadwal｜今日安排',scheduled.map(t=>taskRow(t,true,false)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal.｜今天沒有安排工作。</div>')}${card('🏠 Rutinitas harian｜每日維持',routineRows(true))}${card('✨ Saran tambahan Homie｜Homie 額外建議',sug+`<div style="height:8px"></div><button class="btn secondary full" onclick="openHelperAdd()">＋ Tambah pekerjaan sendiri｜自己增加打掃工作</button>`)}`}
+function taskRow(t,helper=false,even=false){const kind=even?'routine':'task',dn=isItemDone(kind,t),last=t.lastDone?`上次：${t.lastDone}`:'尚無完成紀錄';if(helper){let hint=even&&t.preferred?`<div class="small">${bilingualHtml(`建議${t.preferred}`)}</div>`:'';return `<div class="task bilingual ${dn?'done':''}"><div class="between"><div><div class="name"><b>${tr(t.name)}</b></div><span class="zh">${bilingualHtml(t.name)}</span>${hint}</div><div class="task-actions"><button class="mini" onclick="openCompletion('${kind}','${even?t._id:t.name.replace(/'/g,"\\'")}')">${dn?'✓ Sudah selesai｜已完成':'Selesai｜完成'}</button></div></div>${completionDetailsHtml(kind,t)}</div>`}let sub=even?(t.preferred?bilingualHtml(`建議${t.preferred}`):''):`${last} · ${t.minDays}～${t.maxDays}天`;return `<div class="task ${dn?'done':''}"><div class="between"><div><div class="name"><b>${bilingualHtml(t.name)}</b></div>${sub?`<div class="small">${sub}</div>`:''}</div><div class="task-actions">${even&&isManager()?(dn?`<button class="mini" disabled style="opacity:.45" title="請先取消完成">已完成・不可移除</button>`:`<button class="mini danger" onclick="hideTodayItem('routine','${t._id}')">今天移除</button>`):''}<button class="mini" onclick="openCompletion('${kind}','${even?t._id:t.name.replace(/'/g,"\\'")}')">${dn?'✓ 已完成':'✓ 完成'}</button></div></div>${completionDetailsHtml(kind,t)}</div>`}
+function helperView(){let sts=[['很好','Baik sekali'],['正常','Baik'],['有點累','Agak lelah'],['不舒服','Kurang sehat']],base=workload(S.selected),forced=new Set([...manualAdded(S.selected)]),completedItems=base.items.filter(t=>isItemDone('task',t)),forcedItems=base.items.filter(t=>forced.has(t.name)&&!isItemDone('task',t)),normalItems=base.items.filter(t=>!forced.has(t.name)&&!isItemDone('task',t)),scheduled=[...completedItems,...forcedItems,...normalItems],moved=[];if(S.health==='有點累'){const keepCount=Math.max(0,Math.ceil(normalItems.length/2));scheduled=[...completedItems,...forcedItems,...normalItems.slice(0,keepCount)];moved=normalItems.slice(keepCount)}if(S.health==='不舒服'){scheduled=[...completedItems,...forcedItems];moved=normalItems}let extraBase=extraSuggestions(S.selected),seen=new Set(scheduled.map(t=>t.name)),suggestions=[...moved,...extraBase].filter((t,i,a)=>!seen.has(t.name)&&a.findIndex(x=>x.name===t.name)===i),sug=suggestions.map(t=>`<div class="task bilingual"><div class="between"><div><b>${tr(t.name)}</b><span class="zh">${bilingualHtml(t.name)}</span><div class="small">${moved.some(x=>x.name===t.name)?'Dipindahkan karena kondisi hari ini｜因今天身體狀況移到建議':'Jika ada waktu｜有空再做'}</div></div><button class="mini" onclick="helperAddToToday('${t.name.replace(/'/g,"\\'")}')">＋ Kerjakan｜加入</button></div></div>`).join('')||'<div class="small">Tidak ada saran tambahan hari ini.｜今天沒有額外建議。</div>';return `<div class="small">${currentName()} · Selamat pagi｜早安</div><h1>Hari ini｜今天</h1>${card('Kondisi hari ini｜身體狀態',`<div class="statusgrid">${sts.map(([zh,id])=>`<button class="status ${S.health===zh?'active':''}" onclick="S.health='${zh}';render()">${id}<br><span class="small">${zh}</span></button>`).join('')}</div>`)}${card('📌 Pengingat hari ini｜今日提醒',reminderBlock(S.selected,false))}${card('📝 Daftar keluarga｜家庭待辦',todoBlock())}${card('🌞 Alur hari ini｜今日流程',flowRows(true))}${card('🧹 Pekerjaan terjadwal｜今日安排',(scheduled.map(t=>taskRow(t,true,false)).join('')||'<div class="small">Tidak ada pekerjaan terjadwal.｜今天沒有安排工作。</div>')+scheduleNoteReadOnly(S.selected))}${card('🏠 Rutinitas harian｜每日維持',routineRows(true))}${card('✨ Saran tambahan Homie｜Homie 額外建議',sug+`<div style="height:8px"></div><button class="btn secondary full" onclick="openHelperAdd()">＋ Tambah pekerjaan sendiri｜自己增加打掃工作</button>`)}`}
 function observerView(){
  let w=workload(S.selected);
  let scheduled=w.items.map(t=>taskRow(t,false,false)).join('')||'<div class="small">今天沒有安排彈性家事。</div>';
@@ -901,7 +1009,7 @@ function observerView(){
  ${card('📌 今日提醒',reminderBlock(S.selected,false))}
  ${card('📝 家庭待辦／採買提醒',todoBlock())}
  ${card('🌞 今日流程',flowRows(false))}
- ${card('🧹 今日安排',scheduled)}
+ ${card('🧹 今日安排',scheduled+scheduleNoteReadOnly(S.selected))}
  ${card('🏠 每日維持',routineRows(false))}
  ${card('今日完成紀錄',historyForDate(S.selected))}`;
 }
