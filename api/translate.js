@@ -14,7 +14,7 @@ export default async function handler(req,res){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':`Bearer ${key}`},
       body:JSON.stringify({
-        model:'gpt-5-mini',
+        model:'gpt-5.6-luna',
         input:`Translate the following household-management text into ${target}. Preserve names, numbers, times, emojis and meaning. Return only the translation.\n\n${input}`,
         max_output_tokens:300
       })
