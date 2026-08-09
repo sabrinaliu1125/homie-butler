@@ -59,26 +59,42 @@ async function translateText(text) {
         'Otherwise return only the Traditional Chinese translation.'
       ].join(' ');
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      instructions,
-      input: text,
-      max_output_tokens: 250,
-      store: false,
-    }),
-  });
+  const startedAt = Date.now();
 
-  const data = await response.json().catch(() => ({}));
+  let response;
+  let data;
 
-  if (!response.ok) {
-    throw new Error(data?.error?.message || `OpenAI request failed (${response.status})`);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        instructions,
+        input: text,
+        reasoning: { effort: 'none' },
+        text: { verbosity: 'low' },
+        max_output_tokens: 120,
+        store: false,
+      }),
+    });
+
+    data = await response.json().catch(() => ({}));
+
+    if (response.ok) break;
+
+    const retryable = response.status === 429 || response.status >= 500;
+    if (!retryable || attempt === 2) {
+      throw new Error(data?.error?.message || `OpenAI request failed (${response.status})`);
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
   }
+
+  console.log(`OpenAI translation: ${Date.now() - startedAt}ms`);
 
   let output = String(data?.output_text || '').trim();
 
@@ -130,6 +146,8 @@ async function replyToLine(replyToken, text, quoteToken) {
 }
 
 async function handleEvent(event) {
+  const eventStartedAt = Date.now();
+  const eventId = event?.webhookEventId || 'unknown';
   // 目前只服務 LINE 群組，不處理一對一聊天。
   if (event?.type !== 'message') return;
   if (event?.source?.type !== 'group') return;
@@ -151,6 +169,8 @@ async function handleEvent(event) {
     translated,
     event?.message?.quoteToken
   );
+
+  console.log(`LINE event ${eventId}: replied in ${Date.now() - eventStartedAt}ms`);
 }
 
 export default async function handler(req, res) {
