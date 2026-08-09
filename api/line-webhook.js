@@ -37,27 +37,14 @@ async function translateText(text) {
 
   // 先沿用目前已可用的模型，LINE Bot 穩定後只要改環境變數即可切換模型，
   // 不必再修改這支程式。
-  const model = String(process.env.OPENAI_TRANSLATION_MODEL || 'gpt-5.6-luna').trim();
+  const model = 'gpt-5.6-luna';
 
   const hasChinese = /[\u3400-\u9FFF]/.test(text);
 
+  // 極短翻譯指令：降低每次 OpenAI request 的輸入量與處理負擔。
   const instructions = hasChinese
-    ? [
-        'You are a translation engine only.',
-        'Translate the user text from Traditional/Simplified Chinese into natural Indonesian suitable for everyday household communication.',
-        'Preserve personal names, numbers, dates, times, punctuation, line breaks, emojis, and the original meaning.',
-        'Do not answer questions, do not give advice, do not add explanations, and do not add quotation marks.',
-        'Return only the Indonesian translation.'
-      ].join(' ')
-    : [
-        'You are a translation engine only.',
-        'Determine whether the user text is Indonesian.',
-        'If it is Indonesian, translate it into natural Traditional Chinese as used in Taiwan.',
-        'Preserve personal names, numbers, dates, times, punctuation, line breaks, emojis, and the original meaning.',
-        'Do not answer questions, do not give advice, do not add explanations, and do not add quotation marks.',
-        'If the text is mainly English or another non-Indonesian language, or is only a name/symbols/numbers, return exactly __IGNORE__.',
-        'Otherwise return only the Traditional Chinese translation.'
-      ].join(' ');
+    ? 'Translate Chinese to natural Indonesian. Preserve names, numbers, dates, times, emoji and meaning. Translation only; never answer or explain.'
+    : 'If Indonesian, translate to natural Traditional Chinese (Taiwan). Preserve names, numbers, dates, times, emoji and meaning. If mainly English/other language, return exactly __IGNORE__. Translation only; never answer or explain.';
 
   const startedAt = Date.now();
 
@@ -77,7 +64,7 @@ async function translateText(text) {
         input: text,
         reasoning: { effort: 'none' },
         text: { verbosity: 'low' },
-        max_output_tokens: 120,
+        max_output_tokens: 80,
         store: false,
       }),
     });
