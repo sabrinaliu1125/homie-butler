@@ -43,8 +43,8 @@ async function translateText(text) {
 
   // 極短翻譯指令：降低每次 OpenAI request 的輸入量與處理負擔。
   const instructions = hasChinese
-    ? 'Translate Chinese to natural Indonesian. Preserve names, numbers, dates, times, emoji and meaning. Translation only; never answer or explain.'
-    : 'If Indonesian, translate to natural Traditional Chinese (Taiwan). Preserve names, numbers, dates, times, emoji and meaning. If mainly English/other language, return exactly __IGNORE__. Translation only; never answer or explain.';
+    ? 'STRICT TRANSLATION ONLY. Input is Chinese. Output MUST be Bahasa Indonesia only, never Chinese. Preserve names, numbers, dates, times, emoji and meaning. Never answer, explain, summarize or rewrite.'
+    : 'STRICT TRANSLATION ONLY. If input is Bahasa Indonesia, output MUST be Traditional Chinese (Taiwan) only; NEVER Simplified Chinese. Preserve names, numbers, dates, times, emoji and meaning. If mainly English/other language, return exactly __IGNORE__. Never answer, explain, summarize or rewrite.';
 
   const startedAt = Date.now();
 
@@ -96,6 +96,39 @@ async function translateText(text) {
 
   if (!output) throw new Error('OpenAI returned empty translation');
   if (output === '__IGNORE__') return null;
+
+  // 正常翻譯不增加延遲；只有中文輸入卻仍回出大量中文時才重試一次。
+  if (hasChinese) {
+    const chineseChars = (output.match(/[\u3400-\u9FFF]/g) || []).length;
+    const visibleChars = output.replace(/\s/g, '').length || 1;
+
+    if (chineseChars >= 3 && chineseChars / visibleChars > 0.2) {
+      console.warn('Unexpected Chinese output; retrying strict Indonesian translation');
+
+      const retry = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          instructions: 'Translate this Chinese text into Bahasa Indonesia ONLY. Never output Chinese. Preserve names, numbers, dates, times and emoji. Translation only.',
+          input: text,
+          reasoning: { effort: 'none' },
+          text: { verbosity: 'low' },
+          max_output_tokens: 80,
+          store: false,
+        }),
+      });
+
+      const retryData = await retry.json().catch(() => ({}));
+      if (retry.ok) {
+        const retryOutput = String(retryData?.output_text || '').trim();
+        if (retryOutput) output = retryOutput;
+      }
+    }
+  }
 
   return output;
 }
