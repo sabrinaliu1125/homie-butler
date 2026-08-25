@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0">
 <meta name="theme-color" content="#739887"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Homie">
 <title>Homie Butler v1.2 Beta</title>
 <link rel="manifest" href="/site.webmanifest">
@@ -112,14 +113,19 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 #refreshBtn{width:42px;min-width:42px;padding:8px 9px;font-size:20px;line-height:1}
 #refreshBtn.syncing{animation:homieSpin .75s linear infinite}
 @keyframes homieSpin{to{transform:rotate(360deg)}}
+
+.update-toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:10020;
+ background:#315447;color:white;border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;
+ box-shadow:0 7px 22px rgba(40,62,51,.18);opacity:0;pointer-events:none;transition:opacity .2s}
+.update-toast.show{opacity:1}
 </style></head>
-<body><div id="pinGate" class="pin-gate">
+<body><div id="updateToast" class="update-toast">Homie 正在更新…</div><div id="pinGate" class="pin-gate">
 <div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">家庭雲端同步</div>
 <div class="pin-title">輸入家庭 PIN</div><div class="pin-help">請輸入家庭共用的 6 位數 PIN。驗證成功後，這台裝置會記住，不會因為切換「今天／日曆／家庭／紀錄」再次詢問。</div>
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.17a Beta · 流程模板穩定版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.18 Beta · 自動更新版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -141,6 +147,56 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
 <dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button id="completeClose" class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer"><span id="completePhotoLabel">📷 加入照片（選填）</span><input id="completePhoto" type="file" accept="image/*" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
+const HOMIE_APP_VERSION='1.2.18';
+const HOMIE_VERSION_KEY='homie_app_version';
+let homieUpdateTimer=null;
+let homieUpdateInProgress=false;
+
+function showUpdateToast(text='Homie 正在更新…'){
+ const el=document.getElementById('updateToast');
+ if(!el)return;
+ el.textContent=text;el.classList.add('show');
+}
+async function checkForHomieUpdate({quiet=true}={}){
+ if(homieUpdateInProgress||document.hidden)return false;
+ try{
+   const r=await fetch(`/version.json?_=${Date.now()}`,{cache:'no-store',headers:{'Cache-Control':'no-cache'}});
+   if(!r.ok)return false;
+   const j=await r.json();
+   const remote=String(j?.version||'').trim();
+   if(!remote)return false;
+   localStorage.setItem(HOMIE_VERSION_KEY,HOMIE_APP_VERSION);
+   if(remote!==HOMIE_APP_VERSION){
+     homieUpdateInProgress=true;
+     showUpdateToast(`Homie 更新至 v${remote}…`);
+     sessionStorage.setItem('homie_target_version',remote);
+     const u=new URL(window.location.href);
+     u.searchParams.set('homie_v',remote);
+     u.searchParams.set('_update',Date.now().toString());
+     setTimeout(()=>window.location.replace(u.toString()),180);
+     return true;
+   }
+   if(!quiet){
+     showUpdateToast(`已是最新版本 v${HOMIE_APP_VERSION}`);
+     setTimeout(()=>document.getElementById('updateToast')?.classList.remove('show'),1400);
+   }
+   return false;
+ }catch(e){
+   console.warn('Homie update check:',e);
+   return false;
+ }
+}
+function startHomieAutoUpdate(){
+ if(homieUpdateTimer)clearInterval(homieUpdateTimer);
+ // Check shortly after app opens, then every 5 minutes.
+ setTimeout(()=>checkForHomieUpdate({quiet:true}),1200);
+ homieUpdateTimer=setInterval(()=>checkForHomieUpdate({quiet:true}),300000);
+}
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden)setTimeout(()=>checkForHomieUpdate({quiet:true}),350);
+});
+window.addEventListener('focus',()=>setTimeout(()=>checkForHomieUpdate({quiet:true}),350));
+
 const ID={'洗衣服':'Mencuci pakaian','晾衣服':'Menjemur pakaian','收衣服':'Merapikan pakaian','收垃圾':'Mengumpulkan sampah','清貓砂':'Membersihkan kotak pasir kucing','倒除濕機水':'Mengosongkan air dehumidifier','洗貓碗':'Mencuci mangkuk kucing','洗奶瓶與擠乳器':'Mencuci botol dan pompa ASI','餐後收拾':'Merapikan setelah makan','主臥完整清潔':'Membersihkan kamar tidur utama','妹妹房完整清潔':'Membersihkan kamar anak perempuan','弟弟房完整清潔':'Membersihkan kamar anak laki-laki','客廳完整清潔':'Membersihkan ruang tamu','餐廳完整清潔':'Membersihkan ruang makan','廚房完整清潔':'Membersihkan dapur','後陽台完整清潔':'Membersihkan balkon belakang','客廳廁所完整清潔':'Membersihkan toilet ruang tamu','工作室完整清潔':'Membersihkan ruang kerja','排水孔清理':'Membersihkan saluran pembuangan','洗衣機清潔':'Membersihkan mesin cuci','溫奶':'Menghangatkan ASI','早餐／喝奶':'Sarapan / minum susu','送孩子上學':'Mengantar anak ke sekolah','接孩子':'Menjemput anak','晚餐':'Makan malam','睡前奶':'Susu sebelum tidur','很好':'Baik sekali','正常':'Baik','有點累':'Agak lelah','不舒服':'Kurang sehat','家庭日':'Hari keluarga','家事日':'Hari pekerjaan rumah','婆婆家':'Rumah ibu mertua','照護日':'Hari perawatan','外傭休假':'Hari libur','新流程':'Alur baru','新維持工作':'Rutinitas baru','新家事':'Pekerjaan baru'};
 const defaults={role:'manager',tab:'today',selected:localYmd(new Date()),modeDefault:'家事日',dateModes:{},weekdayModes:{0:'家庭日',1:'婆婆家',2:'家事日',3:'家事日',4:'婆婆家',5:'家事日',6:'家庭日'},dateCapacity:{},manualAdd:{},manualRemove:{},planned:{},health:'正常',members:[{name:'蓉',role:'管理者'},{name:'外傭',role:'家庭助手'},{name:'先生',role:'家庭觀察者'},{name:'媽媽',role:'家庭觀察者'}],currentMember:'蓉',notes:{},priorities:{},done:{},history:[],chat:[],todos:[],completionDetails:{},hiddenFlow:{},hiddenRoutine:{},flow:[{time:'07:15',name:'溫奶',who:'外傭'},{time:'07:30',name:'早餐／喝奶',who:'全家'},{time:'08:10',name:'送孩子上學',who:'爸爸＋外傭'},{time:'15:50',name:'接孩子',who:'媽媽＋外傭'},{time:'18:00',name:'晚餐',who:'全家'},{time:'19:40',name:'睡前奶',who:'爸爸'}],
 tasks:[
@@ -1284,7 +1340,7 @@ function render(){if(S.tab==='chat')S.tab='today';syncRoleSelect();document.quer
 const pinInputEl=document.getElementById('pinInput'),pinLoginBtnEl=document.getElementById('pinLoginBtn');
 if(pinInputEl){pinInputEl.addEventListener('input',()=>{pinInputEl.value=pinInputEl.value.replace(/\D/g,'').slice(0,6);const e=document.getElementById('pinError');if(e)e.textContent=''});pinInputEl.addEventListener('keydown',e=>{if(e.key==='Enter')submitFamilyPin()})}
 if(pinLoginBtnEl)pinLoginBtnEl.addEventListener('click',submitFamilyPin);
-document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>{S.tab=x.dataset.tab;render()}));try{render()}catch(e){console.error('initial render',e)}setTimeout(initCloud,150);
+document.querySelectorAll('.tab').forEach(x=>x.addEventListener('click',()=>{S.tab=x.dataset.tab;render()}));try{render()}catch(e){console.error('initial render',e)}startHomieAutoUpdate();setTimeout(initCloud,150);
 </script><dialog id="roleSwitchDlg"><div class="db">
 <div class="between"><h3>切換使用者</h3><button class="mini" onclick="roleSwitchDlg.close()">關閉</button></div>
 <div class="small">任何家庭成員都可以選擇要切換的身分，但切換前必須輸入家庭 PIN。</div>
