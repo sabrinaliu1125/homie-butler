@@ -125,7 +125,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.18 Beta · 自動更新版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.19 Beta · 自訂日子模板版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -147,7 +147,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
 <dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button id="completeClose" class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer"><span id="completePhotoLabel">📷 加入照片（選填）</span><input id="completePhoto" type="file" accept="image/*" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
-const HOMIE_APP_VERSION='1.2.18';
+const HOMIE_APP_VERSION='1.2.19';
 const HOMIE_VERSION_KEY='homie_app_version';
 let homieUpdateTimer=null;
 let homieUpdateInProgress=false;
@@ -226,7 +226,26 @@ if(!S.manualAdd) S.manualAdd={};
 if(!S.manualRemove) S.manualRemove={};
 if(!S.planned) S.planned={};
 function makeId(prefix){return prefix+'_'+Math.random().toString(36).slice(2,9)}
-function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.sharedTranslations)S.sharedTranslations={};if(!S.tempFlow)S.tempFlow={};if(!S.careFlow)S.careFlow=[];if(!S.tempRoutine)S.tempRoutine={};if(!S.extraManual)S.extraManual={};if(!S.extraHidden)S.extraHidden={};if(!S.scheduleNotes)S.scheduleNotes={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.careFlow||[]).forEach(x=>{if(!x._id)x._id=makeId('cf')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')});if(!S.extraSplitFix1211){
+function ensureV11State(){if(!S.chat)S.chat=[];if(!S.todos)S.todos=[];if(!S.sharedTranslations)S.sharedTranslations={};if(!S.tempFlow)S.tempFlow={};if(!S.careFlow)S.careFlow=[];if(!S.dayTypes)S.dayTypes=[];if(!S.dayTypeFlows)S.dayTypeFlows={};if(!S.tempRoutine)S.tempRoutine={};if(!S.extraManual)S.extraManual={};if(!S.extraHidden)S.extraHidden={};if(!S.scheduleNotes)S.scheduleNotes={};if(!S.completionDetails)S.completionDetails={};if(!S.hiddenFlow)S.hiddenFlow={};if(!S.hiddenRoutine)S.hiddenRoutine={};if(!S.notes)S.notes={};if(!S.done)S.done={};if(!S.history)S.history=[];
+if(!S.dayTypes.length){
+ const legacy=['家事日','家庭日','婆婆家','照護日','外傭休假'];
+ const used=[S.modeDefault,...Object.values(S.weekdayModes||{}),...Object.values(S.dateModes||{}),...legacy].filter(Boolean);
+ const uniq=[...new Set(used)];
+ const emojiMap={'家事日':'🧹','家庭日':'👨‍👩‍👧','婆婆家':'👵','照護日':'👶','外傭休假':'🌴'};
+ S.dayTypes=uniq.map(name=>({name,emoji:emojiMap[name]||'🏡',autoHousework:name==='家事日'}));
+}
+if(!Object.keys(S.dayTypeFlows||{}).length){
+ S.dayTypeFlows={};
+ (S.dayTypes||[]).forEach(x=>S.dayTypeFlows[x.name]=[]);
+ if(S.careFlow?.length)S.dayTypeFlows['照護日']=S.careFlow;
+}
+(S.dayTypes||[]).forEach(x=>{
+ if(!x.emoji)x.emoji='🏡';
+ if(x.autoHousework===undefined)x.autoHousework=x.name==='家事日';
+ if(!S.dayTypeFlows[x.name])S.dayTypeFlows[x.name]=[];
+});
+Object.values(S.dayTypeFlows||{}).flat().forEach(x=>{if(!x._id)x._id=makeId('df')});
+(S.flow||[]).forEach(x=>{if(!x._id)x._id=makeId('f')});(S.careFlow||[]).forEach(x=>{if(!x._id)x._id=makeId('cf')});(S.routine||[]).forEach(x=>{if(!x._id)x._id=makeId('r')});if(!S.extraSplitFix1211){
  const _n=new Date(),_y=_n.getFullYear(),_m=String(_n.getMonth()+1).padStart(2,'0'),_d=String(_n.getDate()).padStart(2,'0'),_today=`${_y}-${_m}-${_d}`;
  S.manualAdd??={};S.manualRemove??={};S.planned??={};
  S.manualAdd[_today]=[];S.manualRemove[_today]=[];delete S.planned[_today];
@@ -386,6 +405,60 @@ function showMemberGate(){const g=document.getElementById('memberGate'),box=docu
 function hideMemberGate(){document.getElementById('memberGate')?.classList.add('hidden')}
 function bindDeviceMember(name){if(!(S.members||[]).some(m=>m.name===name))return;localStorage.setItem('homie_device_member',name);hideMemberGate();syncRoleSelect();render()}
 function resetDeviceMember(){if(!isManager())return;if(!confirm('要重新綁定這台裝置的使用者嗎？'))return;localStorage.removeItem('homie_device_member');showMemberGate();syncRoleSelect()}
+
+function dayTypeNames(){return (S.dayTypes||[]).map(x=>x.name).filter(Boolean)}
+function dayTypeConfig(name){return (S.dayTypes||[]).find(x=>x.name===name)||{name,emoji:'🏡',autoHousework:false}}
+function allDayTypeFlows(){return Object.values(S.dayTypeFlows||{}).flat()}
+function isAutoHouseworkMode(name){return !!dayTypeConfig(name).autoHousework}
+function dayTypeEmoji(name){return dayTypeConfig(name).emoji||'🏡'}
+function uniqueDayTypeName(base='新日子'){
+ let n=base,i=2,names=new Set(dayTypeNames());
+ while(names.has(n))n=`${base}${i++}`;
+ return n;
+}
+function addDayType(){
+ if(!isManager())return;
+ const name=uniqueDayTypeName('新日子');
+ S.dayTypes.push({name,emoji:'🏡',autoHousework:false});
+ S.dayTypeFlows[name]=[];
+ render();
+}
+function renameDayType(oldName,newName){
+ if(!isManager())return;
+ newName=String(newName||'').trim();
+ if(!newName||newName===oldName)return render();
+ if(dayTypeNames().includes(newName)){alert('已經有同名的日子類型。');return render()}
+ const cfg=dayTypeConfig(oldName);cfg.name=newName;
+ if(S.dayTypeFlows?.[oldName]!==undefined){S.dayTypeFlows[newName]=S.dayTypeFlows[oldName];delete S.dayTypeFlows[oldName]}
+ Object.keys(S.weekdayModes||{}).forEach(k=>{if(S.weekdayModes[k]===oldName)S.weekdayModes[k]=newName});
+ Object.keys(S.dateModes||{}).forEach(k=>{if(S.dateModes[k]===oldName)S.dateModes[k]=newName});
+ if(S.modeDefault===oldName)S.modeDefault=newName;
+ S.planned={};render();
+}
+function deleteDayType(name){
+ if(!isManager())return;
+ if(dayTypeNames().length<=1){alert('至少要保留一種日子類型。');return}
+ if(!confirm(`確定刪除「${name}」？`))return;
+ const fallback=dayTypeNames().find(x=>x!==name);
+ S.dayTypes=S.dayTypes.filter(x=>x.name!==name);
+ delete S.dayTypeFlows[name];
+ Object.keys(S.weekdayModes||{}).forEach(k=>{if(S.weekdayModes[k]===name)S.weekdayModes[k]=fallback});
+ Object.keys(S.dateModes||{}).forEach(k=>{if(S.dateModes[k]===name)S.dateModes[k]=fallback});
+ if(S.modeDefault===name)S.modeDefault=fallback;
+ S.planned={};render();
+}
+function addDayTypeFlow(name){
+ if(!isManager())return;
+ S.dayTypeFlows??={};S.dayTypeFlows[name]??=[];
+ S.dayTypeFlows[name].push({_id:makeId('df'),time:'09:00',name:'新流程',who:'外傭'});
+ render();
+}
+function deleteDayTypeFlow(name,i){
+ if(!isManager())return;
+ if(!confirm('確定永久刪除這個固定流程？'))return;
+ (S.dayTypeFlows[name]||[]).splice(i,1);render();
+}
+
 function mode(date=S.selected){
  if(S.dateModes[date]) return S.dateModes[date];
  return S.weekdayModes[d(date).getDay()] || S.modeDefault;
@@ -400,7 +473,7 @@ function capacityMinutes(date=S.selected){
 function setCapacityHours(h){S.dateCapacity[S.selected]=Math.max(0,Number(h)||0)*60;invalidatePlan();render()}
 function manualAdded(date=S.selected){return S.manualAdd[date]||[]}
 function priorityNames(date=S.selected){return []}
-function manualRemoved(date=S.selected){return S.manualRemove[date]||[]}function emo(m){return {'家事日':'🧹','家庭日':'👨‍👩‍👧','婆婆家':'👵','照護日':'👶','外傭休假':'🌴'}[m]||'🏡'}function card(t,b,c=''){return `<section class="card ${c}"><h3>${t}</h3>${b}</section>`}function tr(x){return ID[x]||x}
+function manualRemoved(date=S.selected){return S.manualRemove[date]||[]}function emo(m){return dayTypeEmoji(m)}function card(t,b,c=''){return `<section class="card ${c}"><h3>${t}</h3>${b}</section>`}function tr(x){return ID[x]||x}
 function recurrenceStatus(t,date=today()){
  const n=daysSince(t.lastDone,date);
  if(!t.lastDone)return {cls:'status-overdue',label:'尚無完成紀錄'};
@@ -418,7 +491,7 @@ function duePool(date){
    if(removed.has(t.name)) return false;
    if(completed(date,t.name)) return true;
    if(pri.includes(t.name) || added.includes(t.name)) return true;
-   if(mode(date)!=='家事日') return false;
+   if(!isAutoHouseworkMode(mode(date))) return false;
    return daysSince(t.lastDone,date)>=t.minDays;
  });
  list.sort((a,b)=>{
@@ -463,12 +536,30 @@ function reminderBlock(date,canEdit=false){
  if(canEdit)rows+=`<div style="height:8px"></div><textarea id="note" rows="2" placeholder="例如：今天 14:00 有客人、妹妹今天不用接"></textarea><div style="height:7px"></div><button class="btn secondary full" onclick="addNote()">＋ 新增今日提醒</button>`;
  return rows;
 }
+
+async function addNote(){
+ if(!isManager())return;
+ const el=document.getElementById('note');
+ const text=String(el?.value||'').trim();
+ if(!text)return;
+ S.notes??={};S.notes[S.selected]??=[];
+ const item={text,by:currentName(),translation:'',createdAt:new Date().toISOString()};
+ S.notes[S.selected].push(item);
+ if(el)el.value='';
+ render();
+ try{
+   const translated=await ensureTranslation(text);
+   if(translated&&item.text===text){item.translation=translated;render()}
+ }catch(e){console.error('reminder translate',e)}
+}
+
 function deleteReminder(date,i){if(!isManager())return;if(!confirm('確定刪除這則今日提醒？'))return;(S.notes[date]||[]).splice(i,1);render()}
 function hiddenSet(kind,date=S.selected){S[kind]??={};return new Set(S[kind][date]||[])}
-function hideTodayItem(kind,id){if(!isManager())return;const list=kind==='flow'?[...(S.flow||[]),...(S.careFlow||[])]:S.routine;const item=(list||[]).find(x=>x._id===id);if(item&&isItemDone(kind,item)){alert('這個項目已完成，請先取消完成後再移除。');return}const key=kind==='flow'?'hiddenFlow':'hiddenRoutine';S[key]??={};S[key][S.selected]??=[];if(!S[key][S.selected].includes(id))S[key][S.selected].push(id);render()}
+function hideTodayItem(kind,id){if(!isManager())return;const list=kind==='flow'?[...(S.flow||[]),...allDayTypeFlows()]:S.routine;const item=(list||[]).find(x=>x._id===id);if(item&&isItemDone(kind,item)){alert('這個項目已完成，請先取消完成後再移除。');return}const key=kind==='flow'?'hiddenFlow':'hiddenRoutine';S[key]??={};S[key][S.selected]??=[];if(!S[key][S.selected].includes(id))S[key][S.selected].push(id);render()}
 function fixedFlowForDate(date=S.selected){
  const base=[...(S.flow||[])];
- if(mode(date)==='照護日')base.push(...(S.careFlow||[]));
+ const typeName=mode(date);
+ base.push(...(S.dayTypeFlows?.[typeName]||[]));
  return base;
 }
 function visibleFlow(date=S.selected){
@@ -562,7 +653,7 @@ function completionDetailsHtml(kind,item,date=S.selected){
 let completionContext=null;
 
 function openCompletion(kind,idOrName){
- let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?((S.flow||[]).find(x=>x._id===idOrName)||(S.careFlow||[]).find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):(S.routine.find(x=>x._id===idOrName)||(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===idOrName));if(!item)return;
+ let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?((S.flow||[]).find(x=>x._id===idOrName)||allDayTypeFlows().find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):(S.routine.find(x=>x._id===idOrName)||(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===idOrName));if(!item)return;
  const done=isItemDone(kind,item);
  if(done){
    if(confirm(isHelper()?'Batalkan status selesai untuk pekerjaan ini?｜要取消這項完成紀錄嗎？':'要取消這項完成紀錄嗎？'))undoCompletion(kind,item);
@@ -688,7 +779,7 @@ async function translateHomieText(text){
 async function confirmCompletion(){
  if(!completionContext)return;
  const {kind,idOrName}=completionContext;
- let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?((S.flow||[]).find(x=>x._id===idOrName)||(S.careFlow||[]).find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):(S.routine.find(x=>x._id===idOrName)||(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===idOrName));
+ let item=kind==='task'?S.tasks.find(x=>x.name===idOrName):kind==='flow'?((S.flow||[]).find(x=>x._id===idOrName)||allDayTypeFlows().find(x=>x._id===idOrName)||(S.tempFlow?.[S.selected]||[]).find(x=>x._id===idOrName)):(S.routine.find(x=>x._id===idOrName)||(S.tempRoutine?.[S.selected]||[]).find(x=>x._id===idOrName));
  if(!item)return;
  const btn=document.getElementById('completeConfirm');
  const note=document.getElementById('completeNote').value.trim();
@@ -765,7 +856,7 @@ function removeTempFlow(id){
  render();
 }
 function hideTodayFlowSafe(id){
- const item=[...(S.flow||[]),...(S.careFlow||[])].find(x=>x._id===id);
+ const item=[...(S.flow||[]),...allDayTypeFlows()].find(x=>x._id===id);
  if(!item)return;
  if(isItemDone('flow',item)){alert('這個項目已完成，請先取消完成後再移除。');return}
  hideTodayItem('flow',id);
@@ -778,7 +869,7 @@ function restoreTodayFlow(id){
 function hiddenFlowRows(helper=false){
  if(helper)return '';
  const ids=S.hiddenFlow?.[S.selected]||[];
- const items=[...(S.flow||[]),...(S.careFlow||[])].filter(x=>ids.includes(x._id));
+ const items=[...(S.flow||[]),...allDayTypeFlows()].filter(x=>ids.includes(x._id));
  if(!items.length)return '';
  return `<details class="collapse-box"><summary>${helper?'Alur tersembunyi hari ini｜今天已隱藏的流程':'今天已隱藏的流程'}（${items.length}）</summary>
  <div class="collapse-body">${items.map(f=>`<div class="flow between"><div><b>${bilingualHtml(f.name)}</b><div class="small">${f.time}</div><div class="small">${bilingualHtml(f.who)}</div></div>${isManager()?`<button class="mini" onclick="restoreTodayFlow('${f._id}')">恢復</button>`:''}</div>`).join('')}</div></details>`;
@@ -1123,11 +1214,11 @@ function calendarView(){
    <div class="month-head small">${days.map(x=>`<div>${x}</div>`).join('')}</div><div class="calendar">${cells}</div>
    ${card(isHelper()?'Tanggal dipilih｜選取日期':'選取日期',`<b>${S.selected}</b><div style="height:8px"></div><button class="btn full" onclick="S.tab='today';render()">${isHelper()?'Lihat hari ini｜查看這一天':'查看這一天'}</button>`)}`;
  }
- const weekly=days.map((label,i)=>`<div class="row"><b style="width:34px">週${label}</b><select onchange="S.weekdayModes[${i}]=this.value;S.planned={};render()">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<option ${S.weekdayModes[i]===x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('');
+ const weekly=days.map((label,i)=>`<div class="row"><b style="width:34px">週${label}</b><select onchange="S.weekdayModes[${i}]=this.value;S.planned={};render()">${dayTypeNames().map(x=>`<option ${S.weekdayModes[i]===x?'selected':''}>${x}</option>`).join('')}</select></div>`).join('');
  return `${card('📅 每週預設模式',`<div class="weekgrid">${weekly}</div><div class="small" style="margin-top:8px">單一日期的手動設定會優先於每週預設。</div>`)}
  <div class="between"><button class="mini" onclick="shiftMonth(-1)">‹</button><h1>${y} 年 ${m+1} 月</h1><button class="mini" onclick="shiftMonth(1)">›</button></div>
  <div class="month-head small">${days.map(x=>`<div>${x}</div>`).join('')}</div><div class="calendar">${cells}</div>
- ${card('選取日期',`<b>${S.selected}</b><div style="height:8px"></div><div class="grid2">${['家事日','家庭日','婆婆家','照護日','外傭休假'].map(x=>`<button class="mode ${mode()===x?'active':''}" onclick="S.dateModes[S.selected]='${x}';invalidatePlan();render()">${emo(x)} ${x}</button>`).join('')}</div><div style="height:8px"></div><button class="mini" onclick="delete S.dateModes[S.selected];invalidatePlan();render()">使用每週預設</button><div style="height:8px"></div><button class="btn full" onclick="S.tab='today';render()">查看這一天</button>`)}`;
+ ${card('選取日期',`<b>${S.selected}</b><div style="height:8px"></div><div class="grid2">${dayTypeNames().map(x=>`<button class="mode ${mode()===x?'active':''}" onclick="S.dateModes[S.selected]='${x}';invalidatePlan();render()">${emo(x)} ${x}</button>`).join('')}</div><div style="height:8px"></div><button class="mini" onclick="delete S.dateModes[S.selected];invalidatePlan();render()">使用每週預設</button><div style="height:8px"></div><button class="btn full" onclick="S.tab='today';render()">查看這一天</button>`)}`;
 }
 
 function warmBilingualCache(){
@@ -1136,6 +1227,7 @@ function warmBilingualCache(){
  Object.values(S.notes||{}).flat().forEach(n=>n?.text&&texts.push(n.text));
  (S.tasks||[]).forEach(x=>x?.name&&texts.push(x.name));
  (S.flow||[]).forEach(x=>{if(x?.name)texts.push(x.name);if(x?.who)texts.push(x.who)});
+ allDayTypeFlows().forEach(x=>{if(x?.name)texts.push(x.name);if(x?.who)texts.push(x.who)});
  (S.routine||[]).forEach(x=>{if(x?.name)texts.push(x.name);if(x?.preferred)texts.push(`建議${x.preferred}`)});
  (S.todos||[]).forEach(x=>x?.text&&texts.push(x.text));
  (S.chat||[]).forEach(x=>x?.text&&texts.push(x.text));
@@ -1221,16 +1313,43 @@ function observerView(){
  ${card('🏠 每日維持',routineRows(false))}
  ${card('今日完成紀錄',historyForDate(S.selected))}`;
 }
+function settingsSection(title,body,open=false){
+ return `<details class="collapse-box" ${open?'open':''}><summary>${title}</summary><div class="collapse-body">${body}</div></details>`;
+}
+function dayTypeSettingsHtml(){
+ const blocks=(S.dayTypes||[]).map((t,ti)=>{
+   const flows=(S.dayTypeFlows?.[t.name]||[]).map((f,i)=>`<div class="task">
+     <div class="row"><input style="width:88px" value="${escAttr(f.time||'')}" onchange="S.dayTypeFlows[${JSON.stringify(t.name)}][${i}].time=this.value;save()"><input value="${escAttr(f.name||'')}" onchange="S.dayTypeFlows[${JSON.stringify(t.name)}][${i}].name=this.value;save()"></div>
+     <div style="height:7px"></div><div class="row"><input value="${escAttr(f.who||'外傭')}" onchange="S.dayTypeFlows[${JSON.stringify(t.name)}][${i}].who=this.value;save()"><button class="mini danger" onclick="deleteDayTypeFlow(${JSON.stringify(t.name)},${i})">刪除流程</button></div>
+   </div>`).join('')||'<div class="small" style="padding:8px 0">這種日子目前沒有專屬固定流程。</div>';
+   return `<details class="collapse-box"><summary>${escAttr(t.emoji||'🏡')} ${escAttr(t.name)}</summary><div class="collapse-body">
+     <div class="grid2"><div><span class="small">名稱</span><input value="${escAttr(t.name)}" onchange="renameDayType(${JSON.stringify(t.name)},this.value)"></div><div><span class="small">圖示</span><input value="${escAttr(t.emoji||'🏡')}" maxlength="4" onchange="S.dayTypes[${ti}].emoji=this.value||'🏡';render()"></div></div>
+     <label class="row" style="margin:10px 0"><input type="checkbox" style="width:auto" ${t.autoHousework?'checked':''} onchange="S.dayTypes[${ti}].autoHousework=this.checked;S.planned={};render()"><span>這種日子自動安排到期的彈性家事</span></label>
+     <div class="small" style="margin-bottom:6px">這裡的流程只在「${escAttr(t.name)}」出現；上面的每日固定流程仍會一起出現。</div>
+     ${flows}
+     <button class="btn secondary full" onclick="addDayTypeFlow(${JSON.stringify(t.name)})">＋ 新增這種日子的固定流程</button>
+     <div style="height:8px"></div><button class="mini danger" onclick="deleteDayType(${JSON.stringify(t.name)})">刪除這種日子</button>
+   </div></details>`;
+ }).join('');
+ return `<div class="small" style="margin-bottom:9px">可以自行建立任何日子，例如：家事日、照護日、假日、外傭休假、全家外出。每一種都可以有自己的固定流程。</div>${blocks}<button class="btn secondary full" onclick="addDayType()">＋ 新增日子類型</button>`;
+}
 function familyView(){
  if(!isManager())return `<h1>🏡 家庭</h1>${card('權限','只有管理者可以修改家庭設定。')}`;
- let mem=S.members.map((x,i)=>`<div class="task"><div class="grid2"><input value="${escAttr(x.name)}" onchange="renameMember(${i},this.value)"><select onchange="S.members[${i}].role=this.value;save()"><option ${x.role==='管理者'?'selected':''}>管理者</option><option ${x.role==='家庭助手'?'selected':''}>家庭助手</option><option ${x.role==='家庭觀察者'?'selected':''}>家庭觀察者</option></select></div><div style="height:7px"></div><button class="mini" onclick="deleteMemberItem(${i})">刪除成員</button></div>`).join('');
- let flow=S.flow.map((f,i)=>`<div class="task"><div class="row"><input style="width:88px" value="${f.time}" onchange="S.flow[${i}].time=this.value;save()"><input value="${f.name}" onchange="S.flow[${i}].name=this.value;save()"></div><div style="height:7px"></div><div class="row"><input value="${f.who}" onchange="S.flow[${i}].who=this.value;save()"><button class="mini" onclick="deleteFlowItem(${i})">永久刪除</button></div></div>`).join('');
- let careFlow=(S.careFlow||[]).map((f,i)=>`<div class="task"><div class="row"><input style="width:88px" value="${f.time}" onchange="S.careFlow[${i}].time=this.value;save()"><input value="${escAttr(f.name)}" onchange="S.careFlow[${i}].name=this.value;save()"></div><div style="height:7px"></div><div class="row"><input value="${escAttr(f.who||'外傭')}" onchange="S.careFlow[${i}].who=this.value;save()"><button class="mini" onclick="deleteCareFlowItem(${i})">永久刪除</button></div></div>`).join('');
- let routine=S.routine.map((r,i)=>`<div class="task"><div class="row"><input value="${escAttr(r.name)}" onchange="S.routine[${i}].name=this.value;save()"><input type="number" style="width:90px" min="5" value="${r.minutes||10}" onchange="S.routine[${i}].minutes=+this.value;save()"></div><div style="height:7px"></div><div class="row"><input placeholder="時段提示（可空白）" value="${r.preferred||''}" onchange="S.routine[${i}].preferred=this.value;save()"><button class="mini" onclick="deleteRoutineItem(${i})">永久刪除</button></div></div>`).join('');
- let tasks=S.tasks.map((t,i)=>`<div class="task"><div class="row"><input value="${escAttr(t.name)}" onchange="S.tasks[${i}].name=this.value;save()"><button class="mini" onclick="deleteFlexibleTask(${i})">刪除</button></div><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input type="number" min="0" value="${t.minDays}" onchange="S.tasks[${i}].minDays=+this.value;save()"></div><div><span class="small">最晚</span><input type="number" min="1" value="${t.maxDays}" onchange="S.tasks[${i}].maxDays=+this.value;save()"></div><div><span class="small">分鐘</span><input type="number" min="5" value="${t.minutes}" onchange="S.tasks[${i}].minutes=+this.value;save()"></div></div><div class="small">上次完成：${t.lastDone||'尚無紀錄'}</div></div>`).join('');
- let pending=S.pendingNewTaskName||'';
- return `<h1>🏡 家庭</h1>${card('這台裝置',`目前綁定：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button class="btn secondary full" onclick="resetDeviceMember()">重新綁定這台裝置</button><div class="small" style="margin-top:8px">一般使用畫面已不能直接切換其他成員。</div>`)}${card('家庭成員',mem+`<button class="btn secondary full" onclick="S.members.push({name:'新成員',role:'家庭觀察者'});render()">＋ 新增成員</button>`)}${card('🌞 每日固定流程',flow+`<button class="btn secondary full" onclick="S.flow.push({_id:makeId('f'),time:'09:00',name:'新流程',who:'外傭'});render()">＋ 新增固定流程</button>`)}${card('👶 照護日固定流程',`<div class="small" style="margin-bottom:8px">只有日期設定為「照護日」時才會自動加入。</div>`+careFlow+`<button class="btn secondary full" onclick="S.careFlow.push({_id:makeId('cf'),time:'09:00',name:'新照護流程',who:'外傭'});render()">＋ 新增照護日流程</button>`)}${card('🏠 每日維持',routine+`<button class="btn secondary full" onclick="S.routine.push({_id:makeId('r'),name:'新維持工作',minutes:10,preferred:''});render()">＋ 新增每日維持</button>`)}${card('🧹 彈性家事與頻率',tasks+`<div class="task"><b>新增彈性家事</b><div style="height:7px"></div><input id="newTaskName" value="${pending}" placeholder="工作名稱"><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input id="newTaskMin" type="number" min="0" value="7"></div><div><span class="small">最晚</span><input id="newTaskMax" type="number" min="1" value="14"></div><div><span class="small">分鐘</span><input id="newTaskMinutes" type="number" min="5" value="60"></div></div><div style="height:8px"></div><button class="btn secondary full" onclick="addFlexibleTaskFromForm()">＋ 新增家事</button></div>`)}`;
+ const mem=S.members.map((x,i)=>`<div class="task"><div class="grid2"><input value="${escAttr(x.name)}" onchange="renameMember(${i},this.value)"><select onchange="S.members[${i}].role=this.value;save()"><option ${x.role==='管理者'?'selected':''}>管理者</option><option ${x.role==='家庭助手'?'selected':''}>家庭助手</option><option ${x.role==='家庭觀察者'?'selected':''}>家庭觀察者</option></select></div><div style="height:7px"></div><button class="mini" onclick="deleteMemberItem(${i})">刪除成員</button></div>`).join('');
+ const flow=S.flow.map((f,i)=>`<div class="task"><div class="row"><input style="width:88px" value="${escAttr(f.time)}" onchange="S.flow[${i}].time=this.value;save()"><input value="${escAttr(f.name)}" onchange="S.flow[${i}].name=this.value;save()"></div><div style="height:7px"></div><div class="row"><input value="${escAttr(f.who)}" onchange="S.flow[${i}].who=this.value;save()"><button class="mini" onclick="deleteFlowItem(${i})">永久刪除</button></div></div>`).join('');
+ const routine=S.routine.map((r,i)=>`<div class="task"><div class="row"><input value="${escAttr(r.name)}" onchange="S.routine[${i}].name=this.value;save()"><input type="number" style="width:90px" min="5" value="${r.minutes||10}" onchange="S.routine[${i}].minutes=+this.value;save()"></div><div style="height:7px"></div><div class="row"><input placeholder="時段提示（可空白）" value="${escAttr(r.preferred||'')}" onchange="S.routine[${i}].preferred=this.value;save()"><button class="mini" onclick="deleteRoutineItem(${i})">永久刪除</button></div></div>`).join('');
+ const tasks=S.tasks.map((t,i)=>`<div class="task"><div class="row"><input value="${escAttr(t.name)}" onchange="S.tasks[${i}].name=this.value;save()"><button class="mini" onclick="deleteFlexibleTask(${i})">刪除</button></div><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input type="number" min="0" value="${t.minDays}" onchange="S.tasks[${i}].minDays=+this.value;save()"></div><div><span class="small">最晚</span><input type="number" min="1" value="${t.maxDays}" onchange="S.tasks[${i}].maxDays=+this.value;save()"></div><div><span class="small">分鐘</span><input type="number" min="5" value="${t.minutes}" onchange="S.tasks[${i}].minutes=+this.value;save()"></div></div><div class="small">上次完成：${t.lastDone||'尚無紀錄'}</div></div>`).join('');
+ const pending=S.pendingNewTaskName||'';
+ return `<h1>🏡 家庭</h1>
+ ${settingsSection('📱 這台裝置',`目前綁定：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button class="btn secondary full" onclick="resetDeviceMember()">重新綁定這台裝置</button>`)}
+ ${settingsSection('👨‍👩‍👧 家庭成員',mem+`<button class="btn secondary full" onclick="S.members.push({name:'新成員',role:'家庭觀察者'});render()">＋ 新增成員</button>`)}
+ ${settingsSection('🗓 日子類型與專屬流程',dayTypeSettingsHtml(),true)}
+ ${settingsSection('🌞 每日共用固定流程',`<div class="small" style="margin-bottom:8px">不論是哪一種日子，這些流程都會出現。</div>`+flow+`<button class="btn secondary full" onclick="S.flow.push({_id:makeId('f'),time:'09:00',name:'新流程',who:'外傭'});render()">＋ 新增固定流程</button>`)}
+ ${settingsSection('🏠 每日維持',routine+`<button class="btn secondary full" onclick="S.routine.push({_id:makeId('r'),name:'新維持工作',minutes:10,preferred:''});render()">＋ 新增每日維持</button>`)}
+ ${settingsSection('🧹 彈性家事與頻率',tasks+`<div class="task"><b>新增彈性家事</b><div style="height:7px"></div><input id="newTaskName" value="${escAttr(pending)}" placeholder="工作名稱"><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input id="newTaskMin" type="number" min="0" value="7"></div><div><span class="small">最晚</span><input id="newTaskMax" type="number" min="1" value="14"></div><div><span class="small">分鐘</span><input id="newTaskMinutes" type="number" min="5" value="60"></div></div><div style="height:8px"></div><button class="btn secondary full" onclick="addFlexibleTaskFromForm()">＋ 新增家事</button></div>`)}
+ `;
 }
+
 function renameMember(i,newName){
  const old=S.members[i]?.name;if(!old||!newName.trim())return;
  newName=newName.trim();
