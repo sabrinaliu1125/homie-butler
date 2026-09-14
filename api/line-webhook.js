@@ -7,6 +7,7 @@ export const config = {
 };
 
 const LINE_REPLY_URL = 'https://api.line.me/v2/bot/message/reply';
+const LINE_PUSH_URL = 'https://api.line.me/v2/bot/message/push';
 
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
@@ -64,7 +65,7 @@ async function translateText(text) {
         input: text,
         reasoning: { effort: 'none' },
         text: { verbosity: 'low' },
-        max_output_tokens: 80,
+        max_output_tokens: Math.min(1000, Math.max(160, Math.ceil(text.length * 1.8))),
         store: false,
       }),
     });
@@ -117,7 +118,7 @@ async function translateText(text) {
           input: text,
           reasoning: { effort: 'none' },
           text: { verbosity: 'low' },
-          max_output_tokens: 80,
+          max_output_tokens: Math.min(1000, Math.max(160, Math.ceil(text.length * 1.8))),
           store: false,
         }),
       });
@@ -181,14 +182,55 @@ async function handleEvent(event) {
   const text = String(event?.message?.text || '').trim();
   if (!text) return;
 
-  const translated = await translateText(text);
+  console.log(`[${eventId}] received messageId=${event?.message?.id || 'unknown'} chars=${text.length}`);
+
+  let translated;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      console.log(`[${eventId}] translate attempt ${attempt}/3`);
+      translated = await translateText(text);
+      break;
+    } catch (error) {
+      console.warn(`[${eventId}] translate attempt ${attempt} failed:`, error?.message || error);
+      if (attempt === 3) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 300 : 800));
+    }
+  }
   if (!translated) return;
 
-  await replyToLine(
+  console.log(`[${eventId}] translated chars=${translated.length}`);
+
+  try {
+    await replyToLine(
     event.replyToken,
     translated,
     event?.message?.quoteToken
-  );
+    );
+  } catch (replyError) {
+    console.error(`[${eventId}] LINE reply failed; trying group push:`, replyError?.message || replyError);
+
+    const accessToken = String(process.env.LINE_CHANNEL_ACCESS_TOKEN || '').trim();
+    const groupId = event?.source?.groupId;
+    if (!accessToken || !groupId) throw replyError;
+
+    const pushResponse = await fetch(LINE_PUSH_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        to: groupId,
+        messages: [{ type: 'text', text: translated }],
+      }),
+    });
+
+    if (!pushResponse.ok) {
+      const detail = await pushResponse.text().catch(() => '');
+      throw new Error(`LINE push fallback failed (${pushResponse.status}): ${detail}`);
+    }
+    console.log(`[${eventId}] LINE push fallback success`);
+  }
 
   console.log(`LINE event ${eventId}: replied in ${Date.now() - eventStartedAt}ms`);
 }
@@ -215,13 +257,14 @@ export default async function handler(req, res) {
 
     const payload = JSON.parse(rawBody.toString('utf8'));
     const events = Array.isArray(payload?.events) ? payload.events : [];
+    console.log(`LINE webhook received: events=${events.length}`);
 
-    // 同一個 webhook 可能一次帶多個 event。
+    // 同一個 webhook 可能一次帶多個 event.
     const results = await Promise.allSettled(events.map(handleEvent));
 
     for (const result of results) {
       if (result.status === 'rejected') {
-        console.error('LINE event error:', result.reason);
+        console.error('LINE event FINAL failure:', result.reason?.message || result.reason);
       }
     }
 
