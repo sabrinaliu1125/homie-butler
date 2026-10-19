@@ -125,7 +125,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.20 Beta · 日子刪除修正版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.22 Beta · 完成後排程同步修正版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -147,7 +147,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
 <dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button id="completeClose" class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer"><span id="completePhotoLabel">📷 加入照片（選填）</span><input id="completePhoto" type="file" accept="image/*" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
-const HOMIE_APP_VERSION='1.2.21';
+const HOMIE_APP_VERSION='1.2.22';
 const HOMIE_VERSION_KEY='homie_app_version';
 let homieUpdateTimer=null;
 let homieUpdateInProgress=false;
@@ -547,6 +547,20 @@ function candidates(date){
  return names.map(n=>S.tasks.find(t=>t.name===n)).filter(t=>t&&!removed.has(t.name));
 }
 function invalidatePlan(date=S.selected){delete S.planned[date]}
+// Completion changes recurrence eligibility on later days. Discard any
+// previously stored automatic plans from the affected day onward.
+// Manual additions/removals are intentional and must remain untouched.
+function refreshFutureAutoPlans(changedDate){
+  S.planned??={};
+  for(const date of Object.keys(S.planned)){
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&date>=changedDate){
+      delete S.planned[date];
+    }
+  }
+  // candidates(date) / buildPlan(date) derive their lists from the current
+  // task.lastDone each time. The next render recalculates the selected day.
+}
+
 function extraSuggestions(date){
  const hidden=new Set(S.extraHidden?.[date]||[]);
  const manual=S.extraManual?.[date]||[];
@@ -845,6 +859,7 @@ function markCompleted(kind,item,note='',noteTranslation='',photoPath=null){
  if(kind==='task'){
    S.history.push({date:S.selected,name:item.name,by:currentName(),note,noteTranslation,photoPath});
    item.lastDone=S.selected;
+   refreshFutureAutoPlans(S.selected);
  }
  render();
 }
@@ -859,6 +874,7 @@ function undoCompletion(kind,item){
      const prev=S.history.filter(x=>x.name===item.name).map(x=>x.date).sort().pop();
      item.lastDone=prev||null;
    }
+   refreshFutureAutoPlans(S.selected);
  }
  render();
 }
