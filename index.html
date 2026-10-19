@@ -147,7 +147,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
 <dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button id="completeClose" class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer"><span id="completePhotoLabel">📷 加入照片（選填）</span><input id="completePhoto" type="file" accept="image/*" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
-const HOMIE_APP_VERSION='1.2.22';
+const HOMIE_APP_VERSION='1.2.23';
 const HOMIE_VERSION_KEY='homie_app_version';
 let homieUpdateTimer=null;
 let homieUpdateInProgress=false;
@@ -416,6 +416,44 @@ function showMemberGate(){const g=document.getElementById('memberGate'),box=docu
 function hideMemberGate(){document.getElementById('memberGate')?.classList.add('hidden')}
 function bindDeviceMember(name){if(!(S.members||[]).some(m=>m.name===name))return;localStorage.setItem(memberCacheKey(),name);hideMemberGate();syncRoleSelect();render()}
 function resetDeviceMember(){if(!isManager())return;if(!confirm('要重新綁定這台裝置的使用者嗎？'))return;localStorage.removeItem(memberCacheKey());showMemberGate();syncRoleSelect()}
+
+// Sign out of this household only. Never remove family data or member preferences.
+// Flush any pending cloud edit before changing PIN, so the next household cannot
+// accidentally receive the previous household's unsaved state.
+let familySwitchInProgress=false;
+async function switchFamily(){
+ if(familySwitchInProgress)return;
+ if(!confirm('要登出目前家庭並輸入另一組家庭 PIN 嗎？\n已儲存的家事與照片不會刪除。'))return;
+ if(cloudBusy){alert('雲端正在同步，請稍等幾秒再切換家庭。');return}
+ familySwitchInProgress=true;
+ const btn=document.getElementById('switchFamilyBtn');
+ if(btn){btn.disabled=true;btn.textContent='正在安全登出…'}
+ try{
+   clearTimeout(cloudTimer);
+   cloudTimer=null;
+   if(cloudReady&&storedFamilyPin()){
+     cloudBusy=true;
+     try{
+       const saved=await apiRequest('save',S);
+       cloudRevision=Number(saved.revision||cloudRevision);
+     }finally{cloudBusy=false}
+   }
+   if(autoCloudSyncTimer){clearInterval(autoCloudSyncTimer);autoCloudSyncTimer=null}
+   for(const url of privatePhotoCache.values())URL.revokeObjectURL(url);
+   privatePhotoCache.clear();
+   localStorage.removeItem('homie_family_pin');
+   localStorage.removeItem('homie_family_id');
+   window.location.reload();
+ }catch(e){
+   console.error('Homie family switch:',e);
+   setSyncStatus('err','切換前同步失敗');
+   alert('目前的資料還沒有安全同步，為避免遺失變更，已取消切換。請先按右上角重新整理，確認資料後再試。');
+ }finally{
+   familySwitchInProgress=false;
+   if(btn){btn.disabled=false;btn.textContent='⇄ 登出／切換家庭'}
+ }
+}
+
 
 function dayTypeNames(){return (S.dayTypes||[]).map(x=>x.name).filter(Boolean)}
 function dayTypeConfig(name){return (S.dayTypes||[]).find(x=>x.name===name)||{name,emoji:'🏡',autoHousework:false}}
@@ -1377,14 +1415,14 @@ function dayTypeSettingsHtml(){
  return `<div class="small" style="margin-bottom:9px">可以自行建立任何日子，例如：家事日、照護日、假日、外傭休假、全家外出。每一種都可以有自己的固定流程。</div>${blocks}<button class="btn secondary full" onclick="addDayType()">＋ 新增日子類型</button>`;
 }
 function familyView(){
- if(!isManager())return `<h1>🏡 家庭</h1>${card('權限','只有管理者可以修改家庭設定。')}`;
+ if(!isManager())return `<h1>🏡 家庭</h1>${card('📱 這台裝置',`目前使用：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button id="switchFamilyBtn" class="btn secondary full" onclick="switchFamily()">⇄ 登出／切換家庭</button>`)}${card('權限','只有管理者可以修改家庭設定。')}`;
  const mem=S.members.map((x,i)=>`<div class="task"><div class="grid2"><input value="${escAttr(x.name)}" onchange="renameMember(${i},this.value)"><select onchange="S.members[${i}].role=this.value;save()"><option ${x.role==='管理者'?'selected':''}>管理者</option><option ${x.role==='家庭助手'?'selected':''}>家庭助手</option><option ${x.role==='家庭觀察者'?'selected':''}>家庭觀察者</option></select></div><div style="height:7px"></div><button class="mini" onclick="deleteMemberItem(${i})">刪除成員</button></div>`).join('');
  const flow=S.flow.map((f,i)=>`<div class="task"><div class="row"><input style="width:88px" value="${escAttr(f.time)}" onchange="S.flow[${i}].time=this.value;save()"><input value="${escAttr(f.name)}" onchange="S.flow[${i}].name=this.value;save()"></div><div style="height:7px"></div><div class="row"><input value="${escAttr(f.who)}" onchange="S.flow[${i}].who=this.value;save()"><button class="mini" onclick="deleteFlowItem(${i})">永久刪除</button></div></div>`).join('');
  const routine=S.routine.map((r,i)=>`<div class="task"><div class="row"><input value="${escAttr(r.name)}" onchange="S.routine[${i}].name=this.value;save()"><input type="number" style="width:90px" min="5" value="${r.minutes||10}" onchange="S.routine[${i}].minutes=+this.value;save()"></div><div style="height:7px"></div><div class="row"><input placeholder="時段提示（可空白）" value="${escAttr(r.preferred||'')}" onchange="S.routine[${i}].preferred=this.value;save()"><button class="mini" onclick="deleteRoutineItem(${i})">永久刪除</button></div></div>`).join('');
  const tasks=S.tasks.map((t,i)=>`<div class="task"><div class="row"><input value="${escAttr(t.name)}" onchange="S.tasks[${i}].name=this.value;save()"><button class="mini" onclick="deleteFlexibleTask(${i})">刪除</button></div><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input type="number" min="0" value="${t.minDays}" onchange="S.tasks[${i}].minDays=+this.value;save()"></div><div><span class="small">最晚</span><input type="number" min="1" value="${t.maxDays}" onchange="S.tasks[${i}].maxDays=+this.value;save()"></div><div><span class="small">分鐘</span><input type="number" min="5" value="${t.minutes}" onchange="S.tasks[${i}].minutes=+this.value;save()"></div></div><div class="small">上次完成：${t.lastDone||'尚無紀錄'}</div></div>`).join('');
  const pending=S.pendingNewTaskName||'';
  return `<h1>🏡 家庭</h1>
- ${settingsSection('📱 這台裝置',`目前綁定：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button class="btn secondary full" onclick="resetDeviceMember()">重新綁定這台裝置</button>`)}
+ ${settingsSection('📱 這台裝置',`目前綁定：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button class="btn secondary full" onclick="resetDeviceMember()">重新綁定這台裝置</button><div style="height:8px"></div><button id="switchFamilyBtn" class="btn secondary full" onclick="switchFamily()">⇄ 登出／切換家庭</button><div class="small" style="margin-top:7px">只清除本機登入 PIN，不會刪除任何家庭資料。切換後請輸入另一組家庭 PIN。</div>`)}
  ${settingsSection('👨‍👩‍👧 家庭成員',mem+`<button class="btn secondary full" onclick="S.members.push({name:'新成員',role:'家庭觀察者'});render()">＋ 新增成員</button>`)}
  ${settingsSection('🗓 日子類型與專屬流程',dayTypeSettingsHtml(),true)}
  ${settingsSection('🌞 每日共用固定流程',`<div class="small" style="margin-bottom:8px">不論是哪一種日子，這些流程都會出現。</div>`+flow+`<button class="btn secondary full" onclick="S.flow.push({_id:makeId('f'),time:'09:00',name:'新流程',who:'外傭'});render()">＋ 新增固定流程</button>`)}
