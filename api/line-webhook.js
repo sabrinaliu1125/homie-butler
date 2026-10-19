@@ -45,7 +45,7 @@ async function translateText(text) {
   // 極短翻譯指令：降低每次 OpenAI request 的輸入量與處理負擔。
   const instructions = hasChinese
     ? 'STRICT TRANSLATION ONLY. Input is Chinese. Output MUST be Bahasa Indonesia only, never Chinese. Preserve names, numbers, dates, times, emoji and meaning. Never answer, explain, summarize or rewrite.'
-    : 'STRICT TRANSLATION ONLY. If input is Bahasa Indonesia, output MUST be Traditional Chinese (Taiwan) only; NEVER Simplified Chinese. Preserve names, numbers, dates, times, emoji and meaning. If mainly English/other language, return exactly __IGNORE__. Never answer, explain, summarize or rewrite.';
+    : 'STRICT TRANSLATION ONLY. Input is Indonesian or other non-Chinese text. Translate into Traditional Chinese (Taiwan) only; NEVER Simplified Chinese. Preserve names, numbers, dates, times, emoji and meaning. Never answer, explain, summarize or rewrite.';
 
   const startedAt = Date.now();
 
@@ -96,7 +96,7 @@ async function translateText(text) {
   }
 
   if (!output) throw new Error('OpenAI returned empty translation');
-  if (output === '__IGNORE__') return null;
+  if (output === '__IGNORE__') throw new Error('Unexpected IGNORE translation output');
 
   // 正常翻譯不增加延遲；只有中文輸入卻仍回出大量中文時才重試一次。
   if (hasChinese) {
@@ -196,7 +196,7 @@ async function handleEvent(event) {
       await new Promise((resolve) => setTimeout(resolve, attempt === 1 ? 300 : 800));
     }
   }
-  if (!translated) return;
+  if (!translated) throw new Error('Empty translated message');
 
   console.log(`[${eventId}] translated chars=${translated.length}`);
 

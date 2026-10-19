@@ -4,11 +4,14 @@ export default async function handler(req,res){
   if(req.method!=='POST')return res.status(405).json({error:'Method not allowed'});
 
   const {pin,pathname}=req.body||{};
-  if(String(pin||'').trim()!==String(process.env.HOMIE_FAMILY_PIN||'').trim())
+  const primaryPin=String(process.env.HOMIE_FAMILY_PIN||'').trim();
+  const sisterPin=String(process.env.HOMIE_SISTER_PIN||'').trim();
+  const familyId=primaryPin&&String(pin||'').trim()===primaryPin?'primary':(sisterPin&&sisterPin!==primaryPin&&String(pin||'').trim()===sisterPin?'sister':null);
+  if(!familyId)
     return res.status(401).json({error:'Unauthorized'});
 
   const path=String(pathname||'').trim();
-  if(!path.startsWith('homie/completions/'))
+  if(!path.startsWith(familyId==='primary'?'homie/completions/':'homie/sister/completions/'))
     return res.status(400).json({error:'Invalid photo path'});
 
   try{

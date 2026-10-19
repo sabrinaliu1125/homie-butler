@@ -2,7 +2,9 @@ export default async function handler(req,res){
   if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
   try{
     const {text,pin}=req.body||{};
-    if(String(pin||'').trim()!==String(process.env.HOMIE_FAMILY_PIN||'').trim())
+    const primaryPin=String(process.env.HOMIE_FAMILY_PIN||'').trim();
+    const sisterPin=String(process.env.HOMIE_SISTER_PIN||'').trim();
+    if(!primaryPin || (String(pin||'').trim()!==primaryPin && !(sisterPin&&sisterPin!==primaryPin&&String(pin||'').trim()===sisterPin)))
       return res.status(401).json({error:'Unauthorized'});
     const input=String(text||'').trim();
     if(!input) return res.status(400).json({error:'No text'});
