@@ -125,7 +125,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <input id="pinInput" class="pin-input" type="password" inputmode="numeric" maxlength="6" pattern="[0-9]*" placeholder="••••••">
 <button id="pinLoginBtn" class="pin-btn" type="button">登入家庭資料</button><div id="pinError" class="pin-error"></div>
 <div class="pin-note">PIN 只儲存在這台裝置，用來連接同一份家庭雲端資料。</div></div></div>
-<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.20 Beta · 日子刪除修正版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
+<div class="app"><div class="top"><div><div class="brand">Homie Butler</div><div class="small">v1.2.22 Beta · 完成後排程同步修正版</div><div class="syncbar"><span id="syncDot" class="syncdot"></span><span id="syncText">準備連線</span></div></div><div class="row" style="gap:6px"><button id="refreshBtn" class="member-pill" type="button" onclick="refreshFromCloud()" title="重新整理">↻</button><button id="memberPill" class="member-pill" type="button" onclick="openMemberSwitch()">尚未綁定</button></div></div><div id="viewingDateBar"></div><main id="view"></main></div>
 <button id="todayShortcut" class="today-shortcut" onclick="goToday()">⌂ 回本日</button>
 <nav class="tabs"><button class="tab active" data-tab="today">⌂<br><span class="small">今天</span></button><button class="tab" data-tab="calendar">▦<br><span class="small">日曆</span></button><button class="tab" data-tab="family">⌂<br><span class="small">家庭</span></button><button class="tab" data-tab="history">↺<br><span class="small">紀錄</span></button></nav>
 <dialog id="hadddlg"><div class="db">
@@ -147,7 +147,7 @@ input,select,textarea{background:#fffdf8;border-color:#d9ddd5}
 <div id="memberGate" class="member-gate hidden"><div class="pin-card"><div class="pin-logo">Homie Butler</div><div class="pin-sub">這支裝置是誰在使用？</div><div class="pin-help">第一次登入後選擇使用者。之後這台裝置會固定使用此成員身分，一般成員不會再看到切換其他人的選單。</div><div id="memberChoices"></div></div></div>
 <dialog id="completedlg"><div class="db"><div class="between"><h3 id="completeTitle">完成工作</h3><button id="completeClose" class="mini" onclick="completedlg.close()">關閉</button></div><div id="completeMeta" class="small"></div><div style="height:10px"></div><textarea id="completeNote" rows="3" placeholder="完成備註（選填）"></textarea><div style="height:8px"></div><label class="btn secondary full" style="display:block;text-align:center;cursor:pointer"><span id="completePhotoLabel">📷 加入照片（選填）</span><input id="completePhoto" type="file" accept="image/*" style="display:none" onchange="previewCompletePhoto()"></label><div id="completePhotoState" class="photo-state"></div><img id="completePreview" class="photo-thumb" style="display:none"><div style="height:10px"></div><button id="completeConfirm" class="btn full" onclick="confirmCompletion()">✓ 確認完成</button></div></dialog>
 <script>
-const HOMIE_APP_VERSION='1.2.20';
+const HOMIE_APP_VERSION='1.2.23';
 const HOMIE_VERSION_KEY='homie_app_version';
 let homieUpdateTimer=null;
 let homieUpdateInProgress=false;
@@ -271,6 +271,8 @@ function setSyncStatus(kind,text){
  if(txt)txt.textContent=text;
 }
 
+function familyCacheKey(){return 'homie12_'+(localStorage.getItem('homie_family_id')||'primary')}
+function memberCacheKey(){return 'homie_device_member_'+(localStorage.getItem('homie_family_id')||'primary')}
 function storedFamilyPin(){const pin=(localStorage.getItem('homie_family_pin')||'').trim();return /^\d{6}$/.test(pin)?pin:''}
 function showPinGate(message=''){const g=document.getElementById('pinGate'),i=document.getElementById('pinInput'),e=document.getElementById('pinError');if(e)e.textContent=message;if(g)g.classList.remove('hidden');if(i)setTimeout(()=>i.focus(),80)}
 function hidePinGate(){const g=document.getElementById('pinGate'),e=document.getElementById('pinError');if(e)e.textContent='';if(g)g.classList.add('hidden')}
@@ -287,7 +289,7 @@ async function apiRequest(action,data,pinOverride){
  return result;
 }
 function save(){
- localStorage.setItem('homie12',JSON.stringify(S));
+ localStorage.setItem(familyCacheKey(),JSON.stringify(S));
  if(suppressNextPush){suppressNextPush=false;return}
  if(cloudReady){clearTimeout(cloudTimer);cloudTimer=setTimeout(pushCloudState,650)}
 }
@@ -299,7 +301,7 @@ function applyCloudState(result,notice=false){
    S=result.data;ensureV11State();
    mergeSharedTranslationsIntoLocal();
    mergeNeeded=mergeLocalTranslationsIntoShared();
-   localStorage.setItem('homie12',JSON.stringify(S));
+   localStorage.setItem(familyCacheKey(),JSON.stringify(S));
  }
  cloudRevision=Number(result.revision||0);
  suppressNextPush=true;
@@ -321,8 +323,8 @@ function startAutoCloudSync(){
  if(autoCloudSyncTimer)clearInterval(autoCloudSyncTimer);
  autoCloudSyncTimer=setInterval(silentRefreshFromCloud,20000);
 }
-document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudReady)setTimeout(silentRefreshFromCloud,250)});
-window.addEventListener('focus',()=>{if(cloudReady)setTimeout(silentRefreshFromCloud,250)});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&cloudReady){if(S.selected<today())S.selected=today();setTimeout(silentRefreshFromCloud,250);render()}});
+window.addEventListener('focus',()=>{if(cloudReady){if(S.selected<today())S.selected=today();setTimeout(silentRefreshFromCloud,250);render()}});
 
 async function refreshFromCloud(){
  if(!cloudReady||cloudBusy)return;
@@ -369,17 +371,26 @@ async function loadCloudWithPin(pin){
  setSyncStatus('busy','連接雲端…');
  const result=await apiRequest('get',undefined,pin);
  localStorage.setItem('homie_family_pin',pin);
+ const familyId=result.familyId||'primary';
+ localStorage.setItem('homie_family_id',familyId);
  let mergeNeeded=false;
  if(result&&result.data){
    S=result.data;ensureV11State();
    cloudRevision=Number(result.revision||0);
    mergeSharedTranslationsIntoLocal();
    mergeNeeded=mergeLocalTranslationsIntoShared();
-   localStorage.setItem('homie12',JSON.stringify(S));
+   localStorage.setItem(familyCacheKey(),JSON.stringify(S));
    cloudReady=true;
    setSyncStatus('ok',`雲端已同步 · v${cloudRevision}`);
  }else{
    cloudRevision=0;cloudReady=true;
+   if(familyId==='sister'){
+     S=JSON.parse(JSON.stringify(defaults));
+     S.members=[{name:'姐姐',role:'管理者'},{name:'外傭',role:'家庭助手'}];
+     S.currentMember='姐姐';S.flow=[];S.tasks=[];S.routine=[];S.dayTypes=[];S.dayTypeFlows={};
+     ensureV11State();
+     localStorage.removeItem(memberCacheKey());
+   }
    mergeLocalTranslationsIntoShared();
    const created=await apiRequest('save',S,pin);
    cloudRevision=Number(created.revision||1);
@@ -395,7 +406,7 @@ async function loadCloudWithPin(pin){
 async function submitFamilyPin(){const i=document.getElementById('pinInput'),b=document.getElementById('pinLoginBtn'),e=document.getElementById('pinError');const pin=(i?.value||'').replace(/\D/g,'').slice(0,6);if(i)i.value=pin;if(!/^\d{6}$/.test(pin)){if(e)e.textContent='請輸入完整 6 位數 PIN。';return}try{if(b){b.disabled=true;b.textContent='驗證中…'}if(e)e.textContent='';await loadCloudWithPin(pin)}catch(x){console.error(x);localStorage.removeItem('homie_family_pin');cloudReady=false;if(x.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');if(e)e.textContent='PIN 不正確，請再試一次。'}else{setSyncStatus('err','雲端連線失敗');if(e)e.textContent='目前無法連接家庭雲端，請稍後再試。'}}finally{if(b){b.disabled=false;b.textContent='登入家庭資料'}}}
 async function initCloud(){const pin=storedFamilyPin();if(!pin){cloudReady=false;setSyncStatus('busy','等待家庭 PIN');showPinGate();return}try{await loadCloudWithPin(pin)}catch(e){console.error(e);localStorage.removeItem('homie_family_pin');cloudReady=false;if(e.message==='PIN_INVALID'){setSyncStatus('err','PIN 驗證失敗');showPinGate('已儲存的 PIN 無效，請重新輸入。')}else{setSyncStatus('err','雲端連線失敗');showPinGate('目前無法連接家庭雲端，請重新嘗試。')}}}
 
-function deviceMemberName(){return localStorage.getItem('homie_device_member')||''}
+function deviceMemberName(){return localStorage.getItem(memberCacheKey())||''}
 function currentMemberObj(){const n=deviceMemberName();return (S.members||[]).find(m=>m.name===n)||(S.members||[])[0]||{name:'使用者',role:'家庭觀察者'}}
 function currentName(){return currentMemberObj().name}
 function currentRole(){return currentMemberObj().role}
@@ -403,8 +414,46 @@ function syncRoleSelect(){const p=document.getElementById('memberPill');if(p)p.t
 function isManager(){return currentRole()==='管理者'}function isHelper(){return currentRole()==='家庭助手'}function isObserver(){return currentRole()==='家庭觀察者'}
 function showMemberGate(){const g=document.getElementById('memberGate'),box=document.getElementById('memberChoices');if(!g||!box)return;box.innerHTML=(S.members||[]).map(m=>`<button class="member-choice" onclick="bindDeviceMember('${m.name.replace(/'/g,"\\'")}')"><b>${m.name}</b><span class="small">${m.role}</span></button>`).join('');g.classList.remove('hidden')}
 function hideMemberGate(){document.getElementById('memberGate')?.classList.add('hidden')}
-function bindDeviceMember(name){if(!(S.members||[]).some(m=>m.name===name))return;localStorage.setItem('homie_device_member',name);hideMemberGate();syncRoleSelect();render()}
-function resetDeviceMember(){if(!isManager())return;if(!confirm('要重新綁定這台裝置的使用者嗎？'))return;localStorage.removeItem('homie_device_member');showMemberGate();syncRoleSelect()}
+function bindDeviceMember(name){if(!(S.members||[]).some(m=>m.name===name))return;localStorage.setItem(memberCacheKey(),name);hideMemberGate();syncRoleSelect();render()}
+function resetDeviceMember(){if(!isManager())return;if(!confirm('要重新綁定這台裝置的使用者嗎？'))return;localStorage.removeItem(memberCacheKey());showMemberGate();syncRoleSelect()}
+
+// Sign out of this household only. Never remove family data or member preferences.
+// Flush any pending cloud edit before changing PIN, so the next household cannot
+// accidentally receive the previous household's unsaved state.
+let familySwitchInProgress=false;
+async function switchFamily(){
+ if(familySwitchInProgress)return;
+ if(!confirm('要登出目前家庭並輸入另一組家庭 PIN 嗎？\n已儲存的家事與照片不會刪除。'))return;
+ if(cloudBusy){alert('雲端正在同步，請稍等幾秒再切換家庭。');return}
+ familySwitchInProgress=true;
+ const btn=document.getElementById('switchFamilyBtn');
+ if(btn){btn.disabled=true;btn.textContent='正在安全登出…'}
+ try{
+   clearTimeout(cloudTimer);
+   cloudTimer=null;
+   if(cloudReady&&storedFamilyPin()){
+     cloudBusy=true;
+     try{
+       const saved=await apiRequest('save',S);
+       cloudRevision=Number(saved.revision||cloudRevision);
+     }finally{cloudBusy=false}
+   }
+   if(autoCloudSyncTimer){clearInterval(autoCloudSyncTimer);autoCloudSyncTimer=null}
+   for(const url of privatePhotoCache.values())URL.revokeObjectURL(url);
+   privatePhotoCache.clear();
+   localStorage.removeItem('homie_family_pin');
+   localStorage.removeItem('homie_family_id');
+   window.location.reload();
+ }catch(e){
+   console.error('Homie family switch:',e);
+   setSyncStatus('err','切換前同步失敗');
+   alert('目前的資料還沒有安全同步，為避免遺失變更，已取消切換。請先按右上角重新整理，確認資料後再試。');
+ }finally{
+   familySwitchInProgress=false;
+   if(btn){btn.disabled=false;btn.textContent='⇄ 登出／切換家庭'}
+ }
+}
+
 
 function dayTypeNames(){return (S.dayTypes||[]).map(x=>x.name).filter(Boolean)}
 function dayTypeConfig(name){return (S.dayTypes||[]).find(x=>x.name===name)||{name,emoji:'🏡',autoHousework:false}}
@@ -527,17 +576,29 @@ function buildPlan(date){
    if(forced.has(t.name)){out.push(t.name);used+=t.minutes||0;continue}
    if(used+(t.minutes||0)<=budget){out.push(t.name);used+=t.minutes||0}
  }
- S.planned[date]=out;
  return out;
 }
 function candidates(date){
  capacityMinutes(date);
- let names=S.planned[date];
- if(!Array.isArray(names)) names=buildPlan(date);
+ let names=buildPlan(date);
  let removed=new Set(manualRemoved(date));
  return names.map(n=>S.tasks.find(t=>t.name===n)).filter(t=>t&&!removed.has(t.name));
 }
 function invalidatePlan(date=S.selected){delete S.planned[date]}
+// Completion changes recurrence eligibility on later days. Discard any
+// previously stored automatic plans from the affected day onward.
+// Manual additions/removals are intentional and must remain untouched.
+function refreshFutureAutoPlans(changedDate){
+  S.planned??={};
+  for(const date of Object.keys(S.planned)){
+    if(/^\d{4}-\d{2}-\d{2}$/.test(date)&&date>=changedDate){
+      delete S.planned[date];
+    }
+  }
+  // candidates(date) / buildPlan(date) derive their lists from the current
+  // task.lastDone each time. The next render recalculates the selected day.
+}
+
 function extraSuggestions(date){
  const hidden=new Set(S.extraHidden?.[date]||[]);
  const manual=S.extraManual?.[date]||[];
@@ -712,8 +773,9 @@ async function uploadCompletionPhoto(file){
 
 
 const HOMIE_TRANSLATION_CACHE_KEY='homie_translation_cache_v1';
+function translationCacheKey(){return HOMIE_TRANSLATION_CACHE_KEY+'_'+(localStorage.getItem('homie_family_id')||'primary')}
 function translationCache(){
- try{return JSON.parse(localStorage.getItem(HOMIE_TRANSLATION_CACHE_KEY)||'{}')}catch(e){return {}}
+ try{return JSON.parse(localStorage.getItem(translationCacheKey())||'{}')}catch(e){return {}}
 }
 function cachedTranslation(text){
  const key=String(text||'').trim();if(!key)return '';
@@ -725,7 +787,7 @@ function saveCachedTranslation(text,translated,{sync=true}={}){
  const c=translationCache();
  if(c[key]!==translated){c[key]=translated;changed=true}
  const keys=Object.keys(c);if(keys.length>800)delete c[keys[0]];
- localStorage.setItem(HOMIE_TRANSLATION_CACHE_KEY,JSON.stringify(c));
+ localStorage.setItem(translationCacheKey(),JSON.stringify(c));
  S.sharedTranslations??={};
  if(S.sharedTranslations[key]!==translated){S.sharedTranslations[key]=translated;changed=true}
  if(changed&&sync&&cloudReady)save();
@@ -743,7 +805,7 @@ function mergeSharedTranslationsIntoLocal(){
  for(const [k,v] of Object.entries(shared)){
    if(k&&v&&local[k]!==v){local[k]=v;changed=true}
  }
- if(changed)localStorage.setItem(HOMIE_TRANSLATION_CACHE_KEY,JSON.stringify(local));
+ if(changed)localStorage.setItem(translationCacheKey(),JSON.stringify(local));
  return changed;
 }
 
@@ -835,6 +897,7 @@ function markCompleted(kind,item,note='',noteTranslation='',photoPath=null){
  if(kind==='task'){
    S.history.push({date:S.selected,name:item.name,by:currentName(),note,noteTranslation,photoPath});
    item.lastDone=S.selected;
+   refreshFutureAutoPlans(S.selected);
  }
  render();
 }
@@ -849,6 +912,7 @@ function undoCompletion(kind,item){
      const prev=S.history.filter(x=>x.name===item.name).map(x=>x.date).sort().pop();
      item.lastDone=prev||null;
    }
+   refreshFutureAutoPlans(S.selected);
  }
  render();
 }
@@ -1351,14 +1415,14 @@ function dayTypeSettingsHtml(){
  return `<div class="small" style="margin-bottom:9px">可以自行建立任何日子，例如：家事日、照護日、假日、外傭休假、全家外出。每一種都可以有自己的固定流程。</div>${blocks}<button class="btn secondary full" onclick="addDayType()">＋ 新增日子類型</button>`;
 }
 function familyView(){
- if(!isManager())return `<h1>🏡 家庭</h1>${card('權限','只有管理者可以修改家庭設定。')}`;
+ if(!isManager())return `<h1>🏡 家庭</h1>${card('📱 這台裝置',`目前使用：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button id="switchFamilyBtn" class="btn secondary full" onclick="switchFamily()">⇄ 登出／切換家庭</button>`)}${card('權限','只有管理者可以修改家庭設定。')}`;
  const mem=S.members.map((x,i)=>`<div class="task"><div class="grid2"><input value="${escAttr(x.name)}" onchange="renameMember(${i},this.value)"><select onchange="S.members[${i}].role=this.value;save()"><option ${x.role==='管理者'?'selected':''}>管理者</option><option ${x.role==='家庭助手'?'selected':''}>家庭助手</option><option ${x.role==='家庭觀察者'?'selected':''}>家庭觀察者</option></select></div><div style="height:7px"></div><button class="mini" onclick="deleteMemberItem(${i})">刪除成員</button></div>`).join('');
  const flow=S.flow.map((f,i)=>`<div class="task"><div class="row"><input style="width:88px" value="${escAttr(f.time)}" onchange="S.flow[${i}].time=this.value;save()"><input value="${escAttr(f.name)}" onchange="S.flow[${i}].name=this.value;save()"></div><div style="height:7px"></div><div class="row"><input value="${escAttr(f.who)}" onchange="S.flow[${i}].who=this.value;save()"><button class="mini" onclick="deleteFlowItem(${i})">永久刪除</button></div></div>`).join('');
  const routine=S.routine.map((r,i)=>`<div class="task"><div class="row"><input value="${escAttr(r.name)}" onchange="S.routine[${i}].name=this.value;save()"><input type="number" style="width:90px" min="5" value="${r.minutes||10}" onchange="S.routine[${i}].minutes=+this.value;save()"></div><div style="height:7px"></div><div class="row"><input placeholder="時段提示（可空白）" value="${escAttr(r.preferred||'')}" onchange="S.routine[${i}].preferred=this.value;save()"><button class="mini" onclick="deleteRoutineItem(${i})">永久刪除</button></div></div>`).join('');
  const tasks=S.tasks.map((t,i)=>`<div class="task"><div class="row"><input value="${escAttr(t.name)}" onchange="S.tasks[${i}].name=this.value;save()"><button class="mini" onclick="deleteFlexibleTask(${i})">刪除</button></div><div class="grid3" style="margin-top:7px"><div><span class="small">最早</span><input type="number" min="0" value="${t.minDays}" onchange="S.tasks[${i}].minDays=+this.value;save()"></div><div><span class="small">最晚</span><input type="number" min="1" value="${t.maxDays}" onchange="S.tasks[${i}].maxDays=+this.value;save()"></div><div><span class="small">分鐘</span><input type="number" min="5" value="${t.minutes}" onchange="S.tasks[${i}].minutes=+this.value;save()"></div></div><div class="small">上次完成：${t.lastDone||'尚無紀錄'}</div></div>`).join('');
  const pending=S.pendingNewTaskName||'';
  return `<h1>🏡 家庭</h1>
- ${settingsSection('📱 這台裝置',`目前綁定：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button class="btn secondary full" onclick="resetDeviceMember()">重新綁定這台裝置</button>`)}
+ ${settingsSection('📱 這台裝置',`目前綁定：<b>${currentName()}</b> · ${currentRole()}<div style="height:8px"></div><button class="btn secondary full" onclick="resetDeviceMember()">重新綁定這台裝置</button><div style="height:8px"></div><button id="switchFamilyBtn" class="btn secondary full" onclick="switchFamily()">⇄ 登出／切換家庭</button><div class="small" style="margin-top:7px">只清除本機登入 PIN，不會刪除任何家庭資料。切換後請輸入另一組家庭 PIN。</div>`)}
  ${settingsSection('👨‍👩‍👧 家庭成員',mem+`<button class="btn secondary full" onclick="S.members.push({name:'新成員',role:'家庭觀察者'});render()">＋ 新增成員</button>`)}
  ${settingsSection('🗓 日子類型與專屬流程',dayTypeSettingsHtml(),true)}
  ${settingsSection('🌞 每日共用固定流程',`<div class="small" style="margin-bottom:8px">不論是哪一種日子，這些流程都會出現。</div>`+flow+`<button class="btn secondary full" onclick="S.flow.push({_id:makeId('f'),time:'09:00',name:'新流程',who:'外傭'});render()">＋ 新增固定流程</button>`)}
@@ -1371,7 +1435,7 @@ function renameMember(i,newName){
  const old=S.members[i]?.name;if(!old||!newName.trim())return;
  newName=newName.trim();
  S.members[i].name=newName;
- if(deviceMemberName()===old)localStorage.setItem('homie_device_member',newName);
+ if(deviceMemberName()===old)localStorage.setItem(memberCacheKey(),newName);
  S.history.forEach(h=>{if(h.by===old)h.by=newName});
  Object.values(S.notes||{}).flat().forEach(n=>{if(n.by===old)n.by=newName});
  Object.values(S.priorities||{}).flat().forEach(p=>{if(typeof p==='object'&&p.by===old)p.by=newName});
@@ -1384,7 +1448,7 @@ function deleteRoutineItem(i){if(i>=0&&i<S.routine.length){S.routine.splice(i,1)
 function deleteMemberItem(i){
  if(i>=0&&i<S.members.length){
    const removed=S.members[i].name;S.members.splice(i,1);
-   if(deviceMemberName()===removed)localStorage.removeItem('homie_device_member');
+   if(deviceMemberName()===removed)localStorage.removeItem(memberCacheKey());
    render();
  }
 }
@@ -1449,7 +1513,7 @@ function confirmRoleSwitch(){
  if(!/^\d{6}$/.test(pin)){alert('請輸入完整 6 位數家庭 PIN');return}
  if(pin!==storedFamilyPin()){alert('PIN 不正確');return}
  if(!(S.members||[]).some(m=>m.name===name)){alert('找不到這位家庭成員');return}
- localStorage.setItem('homie_device_member',name);
+ localStorage.setItem(memberCacheKey(),name);
  roleSwitchDlg.close();
  syncRoleSelect();
  render();

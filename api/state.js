@@ -14,9 +14,16 @@ export default async function handler(req, res) {
   const action = body.action;
 
   if (!expectedPin) return res.status(500).json({ ok:false, error:'HOMIE_FAMILY_PIN is not configured' });
-  if (providedPin !== expectedPin) return res.status(401).json({ ok:false, error:'Unauthorized' });
+  const sisterPin = String(process.env.HOMIE_SISTER_PIN || '').trim();
+  if (sisterPin && sisterPin === expectedPin) return res.status(500).json({ok:false,error:'Family PIN collision'});
+  const familyId = providedPin === expectedPin ? 'primary' : (sisterPin && providedPin === sisterPin ? 'sister' : null);
+  if (!familyId) return res.status(401).json({ ok:false, error:'Unauthorized' });
+  const stateId = familyId === 'primary' ? 1 : 2;
 
-  const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const isPreview = process.env.VERCEL_ENV === 'preview';
+  const databaseUrl = isPreview
+    ? process.env.HOMIE_PREVIEW_DATABASE_URL
+    : (process.env.DATABASE_URL || process.env.POSTGRES_URL);
   if (!databaseUrl) return res.status(500).json({ ok:false, error:'Database URL missing' });
 
   const sql = neon(databaseUrl);
@@ -35,11 +42,12 @@ export default async function handler(req, res) {
       const rows = await sql`
         SELECT data, updated_at, revision
         FROM homie_state
-        WHERE id = 1
+        WHERE id = ${stateId}
       `;
-      if (rows.length === 0) return res.status(200).json({ ok:true, data:null, revision:0 });
+      if (rows.length === 0) return res.status(200).json({ ok:true, data:null, revision:0, familyId });
       return res.status(200).json({
         ok:true,
+        familyId,
         data:rows[0].data,
         updatedAt:rows[0].updated_at,
         revision:Number(rows[0].revision || 1)
@@ -57,15 +65,21 @@ export default async function handler(req, res) {
       const current = await sql`
         SELECT data, updated_at, revision
         FROM homie_state
-        WHERE id = 1
+        WHERE id = ${stateId}
       `;
 
       if (current.length === 0) {
-        await sql`
+        const inserted = await sql`
           INSERT INTO homie_state (id, data, updated_at, revision)
-          VALUES (1, ${JSON.stringify(data)}::jsonb, NOW(), 1)
+          VALUES (${stateId}, ${JSON.stringify(data)}::jsonb, NOW(), 1)
+          ON CONFLICT (id) DO NOTHING
+          RETURNING revision
         `;
-        return res.status(200).json({ ok:true, revision:1 });
+        if (!inserted.length) {
+          const latest = await sql`SELECT data, updated_at, revision FROM homie_state WHERE id=${stateId}`;
+          return res.status(409).json({ok:false,error:'STALE_STATE',revision:Number(latest[0]?.revision||1),data:latest[0]?.data||null,updatedAt:latest[0]?.updated_at||null});
+        }
+        return res.status(200).json({ ok:true, revision:1, familyId });
       }
 
       const currentRevision = Number(current[0].revision || 1);
@@ -86,7 +100,7 @@ export default async function handler(req, res) {
         SET data=${JSON.stringify(data)}::jsonb,
             updated_at=NOW(),
             revision=${nextRevision}
-        WHERE id=1 AND revision=${currentRevision}
+        WHERE id=${stateId} AND revision=${currentRevision}
         RETURNING revision, updated_at
       `;
 
@@ -94,7 +108,7 @@ export default async function handler(req, res) {
         const latest = await sql`
           SELECT data, updated_at, revision
           FROM homie_state
-          WHERE id=1
+          WHERE id=${stateId}
         `;
         return res.status(409).json({
           ok:false,
