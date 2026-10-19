@@ -20,7 +20,10 @@ export default async function handler(req, res) {
   if (!familyId) return res.status(401).json({ ok:false, error:'Unauthorized' });
   const stateId = familyId === 'primary' ? 1 : 2;
 
-  const databaseUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  const isPreview = process.env.VERCEL_ENV === 'preview';
+  const databaseUrl = isPreview
+    ? process.env.HOMIE_PREVIEW_DATABASE_URL
+    : (process.env.DATABASE_URL || process.env.POSTGRES_URL);
   if (!databaseUrl) return res.status(500).json({ ok:false, error:'Database URL missing' });
 
   const sql = neon(databaseUrl);
